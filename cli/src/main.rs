@@ -39,6 +39,8 @@ enum Command {
     Record(RecordArgs),
     /// Replay a patch only when config and command line both opt in
     Replay(ReplayArgs),
+    /// Write an isolated sample scenario patch in a temporary directory
+    Demo(DemoArgs),
 }
 
 #[derive(Args, Debug)]
@@ -94,6 +96,16 @@ struct ReplayArgs {
     #[arg(long)]
     confirm: bool,
     /// Emit machine-readable results
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args, Debug)]
+struct DemoArgs {
+    /// Directory for the sample output (a new temporary directory by default)
+    #[arg(long)]
+    output_dir: Option<PathBuf>,
+    /// Emit a machine-readable result
     #[arg(long)]
     json: bool,
 }
@@ -167,6 +179,7 @@ impl Cli {
             Command::Check(args) => args.json,
             Command::Record(args) => args.json,
             Command::Replay(args) => args.json,
+            Command::Demo(args) => args.json,
         }
     }
 }
@@ -177,6 +190,108 @@ async fn run(cli: Cli) -> std::result::Result<(), AppError> {
         Command::Check(args) => check(args).map_err(AppError::Input),
         Command::Record(args) => record(args).await,
         Command::Replay(args) => replay(args).await,
+        Command::Demo(args) => demo(args).map_err(AppError::Runtime),
+    }
+}
+
+fn demo(args: DemoArgs) -> Result<()> {
+    let output_dir = match args.output_dir {
+        Some(path) => path,
+        None => {
+            let nonce = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            std::env::temp_dir().join(format!("asp-demo-{}-{nonce}", std::process::id()))
+        }
+    };
+    if output_dir.exists() {
+        bail!(
+            "demo output directory {} already exists; choose a new --output-dir",
+            output_dir.display()
+        );
+    }
+    fs::create_dir_all(&output_dir)
+        .with_context(|| format!("could not create demo directory {}", output_dir.display()))?;
+
+    let scenario = sample_scenario();
+    let yaml_path = output_dir.join("checkout-flow.yml");
+    let markdown_path = output_dir.join("checkout-flow.md");
+    atomic_write(&yaml_path, serde_yaml::to_string(&scenario)?.as_bytes())?;
+    atomic_write(&markdown_path, markdown(&scenario).as_bytes())?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "demo": true,
+                "output_dir": output_dir,
+                "yaml": yaml_path,
+                "markdown": markdown_path,
+                "steps": scenario.steps.len()
+            })
+        );
+    } else {
+        println!("Demo uses bundled sample data only. Nothing was sent or recorded.");
+        println!("Wrote {}", yaml_path.display());
+        println!("Wrote {}", markdown_path.display());
+    }
+    Ok(())
+}
+
+fn sample_scenario() -> Scenario {
+    Scenario {
+        version: 1,
+        name: "Checkout retry (sample)".into(),
+        generated_by: format!("asp {VERSION} demo"),
+        replay_enabled: false,
+        variables: vec![VariableDefinition {
+            name: "order_id".into(),
+            from_step: 1,
+            json_path: "$.id".into(),
+        }],
+        steps: vec![
+            Step {
+                number: 1,
+                request: RecordedRequest {
+                    method: "POST".into(),
+                    path: "/v1/orders".into(),
+                    headers: BTreeMap::from([("content-type".into(), "application/json".into())]),
+                    body: CapturedBody::Captured {
+                        value: serde_json::json!({"item": "field-notebook", "card_number": "${REDACTED_CARD}"}),
+                    },
+                },
+                response: RecordedResponse {
+                    status: 201,
+                    headers: BTreeMap::from([("content-type".into(), "application/json".into())]),
+                    body: CapturedBody::Captured {
+                        value: serde_json::json!({"id": "${order_id}", "state": "created"}),
+                    },
+                },
+                extracted: vec!["order_id".into()],
+                reviewer_note: Some("Confirm the order id is reused by the retry.".into()),
+            },
+            Step {
+                number: 2,
+                request: RecordedRequest {
+                    method: "GET".into(),
+                    path: "/v1/orders/${order_id}".into(),
+                    headers: BTreeMap::new(),
+                    body: CapturedBody::Omitted {
+                        reason: "path not allowlisted".into(),
+                    },
+                },
+                response: RecordedResponse {
+                    status: 200,
+                    headers: BTreeMap::new(),
+                    body: CapturedBody::Captured {
+                        value: serde_json::json!({"state": "ready"}),
+                    },
+                },
+                extracted: vec![],
+                reviewer_note: Some("Retry is intentional after an order handoff.".into()),
+            },
+        ],
     }
 }
 

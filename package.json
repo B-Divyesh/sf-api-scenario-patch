@@ -7,7 +7,9 @@
     "dev": "vite --config site/vite.config.ts",
     "build:site": "vite build --config site/vite.config.ts",
     "build": "npm run build:site && cargo build --release --manifest-path cli/Cargo.toml && node scripts/copy-binary.mjs",
-    "test": "cargo fmt --manifest-path cli/Cargo.toml -- --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --manifest-path cli/Cargo.toml && cargo build --bins --manifest-path cli/Cargo.toml && npm run build:site && node scripts/test-static-config.mjs && node scripts/test-cli-integration.mjs && playwright test"
+    "test": "cargo fmt --manifest-path cli/Cargo.toml -- --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --manifest-path cli/Cargo.toml && cargo build --bins --manifest-path cli/Cargo.toml && npm run build:site && node scripts/test-static-config.mjs && node scripts/test-cli-integration.mjs && npm run test:claims && playwright test",
+    "test:claim": "node scripts/run-claim.mjs",
+    "test:claims": "cargo build --bins --manifest-path cli/Cargo.toml && node --test tests/claims.test.mjs && playwright test --grep @claim:"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

@@ -68,6 +68,10 @@ state changes are instant. Depth remains through overlap, color, cut edges, and 
   ample dark negative space, no people, no logos, no readable text, no watermark.”
   Generated imagery is used as an original project asset under the factory generation
   service terms.
+- `site/public/api-scenario-patch-og.webp`: a 1200 × 630 center crop derived locally
+  from the same original paper-cut asset for social previews; no third-party art was
+  added.
+- `site/public/apple-touch-icon.png`: a 180 × 180 crop of the same original asset for
+  pinned mobile shortcuts.
 - Icons (copy, check, terminal marks) are hand-authored inline SVG or CSS geometry in
   this repository and licensed with the project under MIT.
-

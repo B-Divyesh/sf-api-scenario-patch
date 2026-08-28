@@ -3,150 +3,38 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Record redacted, multi-step API scenarios as deterministic Markdown and YAML patches for Git review.">
+    <meta name="description" content="Record multi-step API flows as redacted Markdown and YAML scenario patches for Git review.">
     <meta name="theme-color" content="#111815">
-    <title>API Scenario Patch — review API flows in Git</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="/src/styles.css">
-    <script type="module" src="/src/main.ts"></script>
+    <title>API Scenario Patch — record flows for Git review</title>
+    <link rel="canonical" href="https://api-scenario-patch.sociobot.in/">
+    <meta property="og:type" content="website"><meta property="og:title" content="API Scenario Patch — record flows for Git review"><meta property="og:description" content="Make a redacted Markdown and YAML scenario patch from an API flow."><meta property="og:image" content="https://api-scenario-patch.sociobot.in/api-scenario-patch-og.webp"><meta property="og:url" content="https://api-scenario-patch.sociobot.in/">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="API Scenario Patch — record flows for Git review"><meta name="twitter:description" content="Make a redacted Markdown and YAML scenario patch from an API flow."><meta name="twitter:image" content="https://api-scenario-patch.sociobot.in/api-scenario-patch-og.webp">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/src/styles.css"><script type="module" src="/src/main.ts"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to main content</a>
-    <div class="offline" id="offline" role="status" hidden>
-      Offline. The docs and local demo still work; install links may not.
-    </div>
+    <div class="offline" id="offline" role="status" hidden>Offline. The sample and docs are still available.</div>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="API Scenario Patch home">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span>API Scenario Patch</span>
-      </a>
-      <nav aria-label="Primary navigation">
-        <a href="#workflow">How it works</a>
-        <a href="#demo">See a patch</a>
-        <a href="https://github.com/B-Divyesh/sf-api-scenario-patch">Source</a>
-      </nav>
+      <a class="brand" href="/" aria-label="API Scenario Patch home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>API Scenario Patch</span></a>
+      <nav aria-label="Primary navigation"><a href="/">Home</a><a href="/demo/">Demo</a><a href="/privacy/">Privacy</a></nav>
     </header>
-
     <main id="main">
       <section class="hero" aria-labelledby="hero-title">
         <div class="eyebrow"><span aria-hidden="true">●</span> Local CLI · v0.1.0</div>
-        <h1 id="hero-title">Turn an API flow into a patch worth reviewing.</h1>
-        <p class="hero-copy">Capture a real, ordered request scenario from the client you already use. Secrets stay out. Context lands in Git.</p>
-        <div class="command-strip" aria-label="Install command">
-          <code id="install-command" tabindex="0" aria-label="Install command">cargo install --git https://github.com/B-Divyesh/sf-api-scenario-patch api-scenario-patch</code>
-          <button class="copy-button" type="button" data-copy="install-command"><span>Copy</span></button>
-        </div>
-        <p class="microcopy">Free, open source, no account. Rust 1.82+.</p>
-        <figure class="hero-art">
-          <img src="/paper-cut-api-flow.webp" width="1280" height="853" alt="Paper-cut requests passing through a redaction gate and becoming a stitched review document" fetchpriority="high">
-          <figcaption>requests in <span aria-hidden="true">→</span> secrets masked <span aria-hidden="true">→</span> reviewable patch out</figcaption>
-        </figure>
+        <h1 id="hero-title" tabindex="-1">Record API flows for Git review.</h1>
+        <p class="hero-copy">For small API teams reviewing multi-step requests without a shared API-client workspace.</p>
+        <div class="hero-actions"><a class="primary-button" href="/demo/?demo=1">Try it with sample data</a><p>Runs <code>asp demo</code> and shows its Markdown and YAML files.</p></div>
+        <ul class="plain-facts" aria-label="Product facts"><li>Default-deny capture</li><li>Markdown and YAML output</li><li>No account or hosted workspace</li></ul>
+        <div class="command-strip" aria-label="Install command"><code id="install-command" tabindex="0">cargo install --path cli</code><button class="copy-button" type="button" data-copy="install-command"><span>Copy install command</span></button></div>
+        <figure class="hero-art"><img src="/paper-cut-api-flow.webp" width="1280" height="853" alt="Paper-cut requests pass through a redaction gate and become a stitched scenario patch" fetchpriority="high"><figcaption>API flow in <span aria-hidden="true">→</span> masked values <span aria-hidden="true">→</span> scenario patch out</figcaption></figure>
       </section>
-
-      <section class="principle" aria-labelledby="promise-title">
-        <p class="margin-label">The contract</p>
-        <div>
-          <h2 id="promise-title">It records less on purpose.</h2>
-          <p>Authorization, cookies, and bodies start denied. A reviewed config names the few paths worth preserving; JSON-path rules redact before the patch touches disk.</p>
-        </div>
-        <ul class="proof-list">
-          <li><span aria-hidden="true">01</span><strong>Loopback only</strong><small>The proxy refuses public listeners.</small></li>
-          <li><span aria-hidden="true">02</span><strong>Deterministic output</strong><small>No timestamps or machine-specific paths.</small></li>
-          <li><span aria-hidden="true">03</span><strong>Replay stays off</strong><small>Config and command line must both opt in.</small></li>
-        </ul>
-      </section>
-
-      <section class="workflow" id="workflow" aria-labelledby="workflow-title">
-        <div class="section-heading">
-          <p class="kicker">One narrow job</p>
-          <h2 id="workflow-title">Keep your client. Add a review trail.</h2>
-        </div>
-        <ol class="steps">
-          <li>
-            <span class="step-number">1</span>
-            <div><h3>Declare the safe slice</h3><p><code>asp init</code> creates a default-deny policy. Allow body routes, redactions, and named extractions explicitly.</p></div>
-          </li>
-          <li>
-            <span class="step-number">2</span>
-            <div><h3>Run the existing flow</h3><p>Point curl, Bruno, Postman, or application traffic at the local reverse proxy. No request editor to relearn.</p></div>
-          </li>
-          <li>
-            <span class="step-number">3</span>
-            <div><h3>Commit two plain files</h3><p>YAML preserves structure; Markdown gives reviewers a readable change narrative with notes and variables.</p></div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="demo" id="demo" aria-labelledby="demo-title">
-        <div class="demo-intro">
-          <p class="kicker">Local recorded demo</p>
-          <h2 id="demo-title">Watch the secret disappear.</h2>
-          <p>This browser-only example mirrors the CLI transform. It makes no network request and stores nothing.</p>
-          <button class="primary-button" id="run-demo" type="button">Build the safe patch</button>
-        </div>
-        <div class="patch-stack" aria-live="polite" aria-busy="false" id="patch-demo">
-          <div class="empty-state" id="demo-empty">
-            <span class="empty-cut" aria-hidden="true"></span>
-            <strong>No patch yet</strong>
-            <p>Run the example to redact a card value and carry <code>${order_id}</code> into step two.</p>
-          </div>
-          <div class="loading-state" id="demo-loading" hidden>
-            <span aria-hidden="true"></span>
-            <p>Cutting the scenario into safe layers…</p>
-          </div>
-          <article class="patch-paper" id="demo-result" hidden aria-label="Generated scenario patch">
-            <div class="patch-meta"><span>checkout-flow.md</span><span class="safe-label">✓ redacted locally</span></div>
-            <pre tabindex="0" aria-label="Generated patch contents"><code># Checkout retry
-
-## 1. `POST` `/v1/orders`
-Request body:
-  card_number: "${REDACTED_CARD}"
-Response: **201**
-Extracted: `${order_id}`
-
-## 2. `GET` `/v1/orders/${order_id}`
-Response: **200**</code></pre>
-            <button class="copy-button paper-copy" type="button" data-copy="demo-code"><span>Copy patch</span></button>
-            <span id="demo-code" hidden># Checkout retry
-
-## 1. POST /v1/orders
-card_number: ${REDACTED_CARD}
-Response: 201
-Extracted: ${order_id}
-
-## 2. GET /v1/orders/${order_id}
-Response: 200</span>
-          </article>
-        </div>
-      </section>
-
-      <section class="review" aria-labelledby="review-title">
-        <div>
-          <p class="kicker">Made for the pull request</p>
-          <h2 id="review-title">Enough evidence to discuss the flow. Not enough to leak it.</h2>
-        </div>
-        <div class="diff-snippet" aria-label="Example Git diff">
-          <p><span class="minus">−</span> Paste curl in Slack?</p>
-          <p><span class="plus">+</span> Step 2 reuses <code>${order_id}</code></p>
-          <p><span class="plus">+</span> Observed response: 409 Conflict</p>
-          <p><span class="plus">+</span> Reviewer note: retry is intentional</p>
-        </div>
-      </section>
-
-      <section class="final-cta" aria-labelledby="cta-title">
-        <p class="kicker">Your next API review</p>
-        <h2 id="cta-title">Leave the workspace out of it.</h2>
-        <div class="command-strip compact">
-          <code id="start-command" tabindex="0" aria-label="Start recording command">asp init &amp;&amp; asp record --output checkout-flow</code>
-          <button class="copy-button" type="button" data-copy="start-command"><span>Copy</span></button>
-        </div>
-      </section>
+<section class="principle" aria-labelledby="promise-title"><p class="margin-label">Capture rules</p><div><h2 id="promise-title">What asp records by default</h2><p>It records no request or response body until you allow a route. JSON field rules mask values before files are written.</p></div><ul class="proof-list"><li><span aria-hidden="true">01</span><strong>Local-only listener</strong><small>The proxy accepts loopback addresses only.</small></li><li><span aria-hidden="true">02</span><strong>Repeatable sample files</strong><small>The same sample makes the same patch.</small></li><li><span aria-hidden="true">03</span><strong>Replay stays off</strong><small>Config and command line both must opt in.</small></li></ul></section>
+      <section class="workflow" id="workflow" aria-labelledby="workflow-title"><div class="section-heading"><p class="kicker">Three steps</p><h2 id="workflow-title">Create a scenario patch in three steps</h2></div><ol class="steps"><li><span class="step-number">1</span><div><h3>Set capture rules</h3><p>Run <code>asp init</code>. Choose routes, JSON fields to mask, and saved response values.</p></div></li><li><span class="step-number">2</span><div><h3>Record your API flow</h3><p>Send existing client traffic through the local proxy. Keep using your usual API client.</p></div></li><li><span class="step-number">3</span><div><h3>Commit the scenario patch</h3><p>Review the Markdown and YAML files with the pull request.</p></div></li></ol></section>
+      <section class="review" aria-labelledby="review-title"><div><p class="kicker">Made for pull requests</p><h2 id="review-title">Review the flow without sharing a client workspace</h2><p class="review-copy">A scenario patch holds requests, masked values, saved response values, and notes in two readable files.</p></div><div class="diff-snippet" aria-label="Example scenario patch"><p><span class="minus">−</span> Share a workspace link</p><p><span class="plus">+</span> Step 2 uses <code>${order_id}</code></p><p><span class="plus">+</span> Card number is <code>${REDACTED_CARD}</code></p><p><span class="plus">+</span> Reviewer note explains the retry</p></div></section>
+      <section class="final-cta" aria-labelledby="cta-title"><p class="kicker">Try the shipped sample</p><h2 id="cta-title">Generate a sample scenario patch</h2><p>Use a bundled checkout retry. The demo does not use your API traffic.</p><a class="primary-button" href="/demo/?demo=1">Try it with sample data</a></section>
     </main>
-
-    <footer>
-      <p>API Scenario Patch · MIT licensed · no telemetry</p>
-      <nav aria-label="Legal navigation"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-api-scenario-patch">GitHub</a></nav>
-    </footer>
+    <footer><p>API Scenario Patch · v0.1.0 · Built by Param Factory</p><nav aria-label="Footer navigation"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-api-scenario-patch">Source</a></nav></footer>
+    <div class="route-announcer" aria-live="polite" aria-atomic="true"></div>
   </body>
 </html>

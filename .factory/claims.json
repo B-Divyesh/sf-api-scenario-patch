@@ -1,0 +1,12 @@
+[
+  {"id":"demo-command-output","claim":"Runs asp demo and writes Markdown and YAML files.","where":"landing first screen, README","test":"npm run test:claim -- demo-command-output","sandbox":"fresh temporary directory; bundled checkout retry"},
+  {"id":"default-deny-capture","claim":"Default-deny capture.","where":"landing first screen, README","test":"npm run test:claim -- default-deny-capture","sandbox":"fresh asp init configuration"},
+  {"id":"redact-before-files","claim":"JSON field rules mask values before files are written.","where":"landing, README","test":"npm run test:claim -- redact-before-files","sandbox":"Rust transform test"},
+  {"id":"local-only-listener","claim":"The proxy accepts loopback addresses only.","where":"landing, README","test":"npm run test:claim -- local-only-listener","sandbox":"public listener configuration"},
+  {"id":"deterministic-demo-output","claim":"The same captured flow makes the same patch.","where":"landing","test":"npm run test:claim -- deterministic-demo-output","sandbox":"two fresh bundled demo directories"},
+  {"id":"replay-double-opt-in","claim":"Config and command line both must opt in to replay.","where":"landing, README","test":"npm run test:claim -- replay-double-opt-in","sandbox":"fresh replay configuration"},
+  {"id":"no-third-party-browser-requests","claim":"The static site makes no third-party browser requests.","where":"README, Privacy","test":"npm run test:claim -- no-third-party-browser-requests","sandbox":"fresh browser demo flow with request interception"},
+  {"id":"demo-isolated-storage","claim":"Demo mode does not save sample data.","where":"README, Privacy, demo banner","test":"npm run test:claim -- demo-isolated-storage","sandbox":"fresh browser demo flow and reset"},
+  {"id":"no-account-hosted-workspace","claim":"No account or hosted workspace.","where":"landing first screen, README","test":"npm run test:claim -- no-account-hosted-workspace","sandbox":"fresh browser landing page"},
+  {"id":"offline-reload","claim":"The static site works offline after its first visit.","where":"README","test":"npm run test:claim -- offline-reload","sandbox":"fresh browser visit then offline reload"}
+]

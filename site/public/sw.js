@@ -1,5 +1,5 @@
-const CACHE = 'asp-site-v3';
-const SHELL = ['/', '/404.html', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/favicon.svg'];
+const CACHE = 'asp-site-v4';
+const SHELL = ['/', '/demo/', '/404.html', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/api-scenario-patch-og.webp', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

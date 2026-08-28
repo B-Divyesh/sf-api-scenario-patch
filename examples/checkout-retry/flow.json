@@ -1,0 +1,8 @@
+{
+  "name": "Checkout retry",
+  "requests": [
+    {"method": "POST", "path": "/v1/orders", "body": {"item": "field-notebook", "card_number": "4111111111111111"}},
+    {"method": "GET", "path": "/v1/orders/${order_id}"}
+  ],
+  "notes": ["Confirm the order id is reused by the retry.", "Retry is intentional after an order handoff."]
+}

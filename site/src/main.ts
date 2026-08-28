@@ -1,6 +1,8 @@
-const copyButtons = document.querySelectorAll<HTMLButtonElement>('[data-copy]');
+if (location.pathname === '/' && new URLSearchParams(location.search).get('demo') === '1') {
+  location.replace('/demo/?demo=1');
+}
 
-copyButtons.forEach((button) => {
+document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) => {
   button.addEventListener('click', async () => {
     const source = document.getElementById(button.dataset.copy ?? '');
     const text = source?.textContent?.trim() ?? '';
@@ -10,7 +12,7 @@ copyButtons.forEach((button) => {
       if (label) label.textContent = 'Copied';
       button.classList.add('copied');
       window.setTimeout(() => {
-        if (label) label.textContent = button.classList.contains('paper-copy') ? 'Copy patch' : 'Copy';
+        if (label) label.textContent = button.classList.contains('paper-copy') ? 'Copy scenario patch' : 'Copy install command';
         button.classList.remove('copied');
       }, 1600);
     } catch {
@@ -20,42 +22,44 @@ copyButtons.forEach((button) => {
   });
 });
 
-const demo = document.getElementById('patch-demo');
-const empty = document.getElementById('demo-empty');
-const loading = document.getElementById('demo-loading');
-const result = document.getElementById('demo-result');
 const runButton = document.getElementById('run-demo') as HTMLButtonElement | null;
-
 runButton?.addEventListener('click', () => {
-  if (!demo || !empty || !loading || !result) return;
-  empty.hidden = true;
-  result.hidden = true;
-  loading.hidden = false;
+  const result = document.getElementById('demo-result');
+  const demo = document.getElementById('patch-demo');
+  if (!result || !demo) return;
   demo.setAttribute('aria-busy', 'true');
   runButton.disabled = true;
-  runButton.textContent = 'Building patch…';
-  const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 420;
+  runButton.textContent = 'Generating sample patch…';
+  const delay = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220;
   window.setTimeout(() => {
-    loading.hidden = true;
-    result.hidden = false;
+    result.classList.add('fresh-patch');
     demo.setAttribute('aria-busy', 'false');
     runButton.disabled = false;
-    runButton.textContent = 'Rebuild the safe patch';
+    runButton.textContent = 'Generate sample scenario patch';
   }, delay);
 });
 
+document.getElementById('reset-demo')?.addEventListener('click', () => {
+  const patch = document.getElementById('demo-result');
+  patch?.classList.remove('fresh-patch');
+  document.getElementById('run-demo')?.focus();
+  const announcer = document.querySelector<HTMLElement>('.route-announcer');
+  if (announcer) announcer.textContent = 'Demo reset. The bundled sample is ready.';
+});
+
 const offline = document.getElementById('offline');
-const updateConnection = () => {
-  if (offline) offline.hidden = navigator.onLine;
-};
-window.addEventListener('online', updateConnection);
-window.addEventListener('offline', updateConnection);
+const updateConnection = () => { if (offline) offline.hidden = navigator.onLine; };
+addEventListener('online', updateConnection);
+addEventListener('offline', updateConnection);
 updateConnection();
 
+const heading = document.querySelector<HTMLElement>('main h1[tabindex="-1"]');
+if (heading) {
+  window.setTimeout(() => heading.focus(), 0);
+  const announcer = document.querySelector<HTMLElement>('.route-announcer');
+  if (announcer) announcer.textContent = document.title;
+}
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // The site remains fully functional without offline caching.
-    });
-  });
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => undefined));
 }
