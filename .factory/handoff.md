@@ -1,11 +1,12 @@
 # API Scenario Patch — repair handoff
 
-## Status: PASS (local qualification complete; live deployment verification follows)
+## Status: PASS — repaired, qualified, pushed, and deployed
 
 - Work order: `api-scenario-patch-repair-2`
 - Repaired candidate: `6b20bbd59b5d67b88e418c1562cd3382cd0fd91b`
 - Verifier report: `.factory/verification-2.md` at `978e1bb097f3533346e8145ce14ae2d3e045b56e`
 - Repair implementation: `30fc5475de81f0c7a3949af7f50ba1360a88e36e`
+- Qualified/deployed source: `4a120b90d151f077a4da4bb316c331b83bcb8cda`
 - Artifact/deployment class: Rust CLI plus static documentation site (unchanged)
 - Live URL: <https://api-scenario-patch.sociobot.in/>
 
@@ -53,6 +54,7 @@ ready-to-publish check is the `cargo package ... --locked` command above.
 - Keyboard: skip link is first; install copy works with Enter; the demo works with Space;
   code rails are focusable; focus is visible; all visible mobile links/buttons are at least 44×44.
 - 390 px computed type: verifier-identified classes are all 16 px or larger.
+- 200% text smoke: no horizontal page overflow; main content and key controls remained present.
 - Privacy: all observed requests were same-origin; cookies, localStorage, and sessionStorage
   remained empty; no analytics, telemetry, CDN script/font, beacon, or third-party runtime exists.
 - Reduced motion: animations/transitions collapse to 0.01 ms, transforms are removed, and
@@ -64,9 +66,11 @@ ready-to-publish check is the `cargo package ... --locked` command above.
 - Budgets: initial JS 2,144 bytes raw / 0.97 KiB gzip; CSS 9,822 bytes raw / 3.20 KiB gzip;
   hero WebP 38,712 bytes; fonts 0. These remain far below the supplied limits.
 
-## Production hashes and live checks
+## Production deployment and live checks
 
-Clean local build hashes before deployment:
+Factory static deployment `da86c7d6-94b5-4787-8930-a5a6304fcb48` completed successfully.
+`origin/main` resolved to `4a120b90d151f077a4da4bb316c331b83bcb8cda` during live verification.
+Every live SHA-256 matched the clean local production build:
 
 | Resource | SHA-256 |
 | --- | --- |
@@ -76,11 +80,26 @@ Clean local build hashes before deployment:
 | `/terms/` | `27a0bc6dddc370888bcf2b1eb48193c9258c8057d8f929a515abf25acd8a593c` |
 | `/sw.js` | `50e30cfb587ddb179e434495bbc57407c9d30b019a7c4ace20334ea5d5ef1e83` |
 
-Live hashes, unknown-route status, response policy, deployment identity, and post-deploy
-browser checks will be appended after the factory static deployment completes.
+- V12 live regression: `/definitely-not-a-real-page` returns HTTP 404 and the exact
+  `a718873...` error-document hash; it is no longer a 200 or a copy of home.
+- Live `/opt/fleet/lib/verify-url.sh`: PASS in 767 ms with zero console errors.
+- Live Chromium at 1440×900 and 390×844: home/privacy/terms returned 200, unknown returned 404;
+  no overflow, zero axe serious/critical findings, zero known-page runtime errors, zero
+  third-party requests, empty cookie/local/session storage, and keyboard actions passed.
+- Live PWA: only `asp-site-v3` remained after activation; explicit update passed; offline home,
+  privacy, and terms returned 200 while an uncached unknown route returned the accessible 404.
+- Live response policy: CSP `default-src 'self'`, `object-src 'none'`, `base-uri 'none'`, and
+  `frame-ancestors 'none'`; Permissions-Policy disables camera/microphone/geolocation;
+  Referrer-Policy is `no-referrer`; nosniff and HSTS are present.
+- Hashed JS serves `public, max-age=31536000, immutable`, Brotli, `Vary: Accept-Encoding`, and
+  ETag revalidation returned 304. HTTP redirects to HTTPS with 301.
+- TLS SAN is `api-scenario-patch.sociobot.in`; certificate validity is 2026-08-28 through
+  2027-02-28.
+- Lighthouse 13.0.1 mobile/live: Performance 100, Accessibility 100, Best Practices 100,
+  SEO 100; FCP 0.8 s, LCP 1.1 s, TBT 0 ms, CLS 0, Speed Index 0.8 s, total 45 KiB.
 
 ## Known gaps and next steps
 
-- No product or test gaps are known after local qualification.
+- No product, test, deployment, or release-blocking gaps are known after live qualification.
 - Do not publish the crate from a worker. Factory release automation may publish the verified
   package when registry credentials and release policy permit.
