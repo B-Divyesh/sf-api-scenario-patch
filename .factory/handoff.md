@@ -1,43 +1,108 @@
-# API Scenario Patch — verification handoff
+# API Scenario Patch v0.1.0 — repair handoff
 
-## Status: FAIL
+## Status: PASS
 
-Independent QA tested commit `2fff4290c0d46425bc04459ef02b551979cb85bc` and
-<https://api-scenario-patch.sociobot.in/> on 2026-08-28. The live static files match the
-candidate, but the candidate is not ready to release.
+All findings in independent verification report commit
+`84bde9640b677490f4b15b10e916daee68e8a044` for candidate
+`2fff4290c0d46425bc04459ef02b551979cb85bc` were repaired. Product code and
+regression coverage are in `f746ac3c20a61acadf9ab15bc68da5554e5b9010`.
 
-Release blockers:
+## Repairs and exact regression coverage
 
-1. Query credentials such as `?api_key=query-secret` are persisted verbatim, and common
-   credential headers such as `X-API-Key` can also be persisted with no redaction mechanism.
-2. Numeric extracted IDs remain raw in observed responses and later JSON request bodies even
-   though a variable is declared.
-3. Axe reports a serious keyboard-access violation at 390 px on the horizontally scrollable
-   final command.
-4. Ten concurrent requests produced 10 captured steps despite `--max-exchanges 1`.
-5. The live platform is not applying the committed CSP, Permissions-Policy, no-referrer policy,
-   or immutable caching rules.
+- **V1 — query/header credentials:** query values are now default-deny and emitted as
+  `${REDACTED_QUERY}` unless a parameter name is explicitly allowed. Credential-shaped
+  names remain denied even if listed. Common API-key/token/secret headers are always
+  omitted. Optional `[[secrets]]` rules read values from named environment variables and
+  replace matching values with `${NAME}` without putting the secret in TOML. Rust tests
+  cover query policy and header classification; the proxy integration sends
+  `api_key=query-secret`, request/response `X-API-Key`, authorization/cookies, and an
+  environment-backed secret through path, header, and body positions, then asserts no raw
+  value exists in YAML or Markdown.
+- **V2 — scalar extraction:** JSON substitution now replaces exact number and boolean
+  values as well as strings. Unit coverage traverses nested values; proxy coverage extracts
+  numeric `42` and boolean `true`, then checks placeholders in the observed response, later
+  request body, path, and allowed query value.
+- **V3 — mobile keyboard access:** the horizontally scrollable final command has an
+  accessible name and `tabindex="0"`. Playwright explicitly focuses it and runs axe at
+  390×844; zero serious/critical violations.
+- **V4 — concurrent hard limit:** a lock-free admission permit is reserved before upstream
+  forwarding. Ten simultaneous requests with `--max-exchanges 1` deterministically yield
+  one `200`, nine `429` responses, one completion step, and one YAML step.
+- **V5 — live response policy:** `site/public/staticwebapp.config.json` supplies Azure Static
+  Web Apps with the committed CSP, Permissions-Policy, no-referrer, nosniff, and one-year
+  immutable asset rules. A build regression checks that exact policy reaches `dist/site`.
+  Live response checks confirm all four security policies and immutable caching on hashed JS
+  and WebP.
+- **V6 — numbering after failure:** unsuccessful upstream attempts release their admission
+  slot; successful steps are normalized in accepted arrival order before serialization. An
+  integration test performs a recoverable `502`, then a success, and asserts the only step is
+  `number: 1`.
+- **V7 — strict Clippy:** removed the needless `to_string` and made strict workspace Clippy
+  part of `npm test`.
+- **V8 — JSON errors:** both Clap parse errors and post-parse validation failures now return
+  exit `2` with one JSON error object on stdout and empty stderr when `--json` is present.
+  Both paths are integration-tested.
 
-Additional low-severity findings: recovery after a failed upstream call can make a one-step
-patch start at step 2; strict clippy fails on one formatting lint; `--json` errors are not JSON.
+## Verification evidence
 
-## Verification summary
+Run from `/work/repo`:
 
-- `npm ci`: PASS; 0 audit vulnerabilities.
-- `npm test`: PASS (8 unit, 1 doctest, CLI integration, 4 Playwright tests).
-- `npm run build`: PASS; produced `dist/site` and `dist/bin/asp`.
-- `cargo package --manifest-path cli/Cargo.toml --locked --allow-dirty`: PASS and verified.
-- Packaged CLI install and clean public-API consumer: PASS.
-- Lighthouse live mobile: 100 performance / 100 accessibility / 100 best practices / 100 SEO;
-  FCP 0.9s, LCP 1.1s, TBT 0ms, CLS 0, 46 KiB transfer.
-- Desktop 1440 px and mobile 390 px visual/keyboard/browser checks completed. No console or page
-  errors, no third-party initial requests, no cookies or web storage. Reduced motion and offline
-  reload of home/privacy/terms passed.
-- Bundle budgets pass: JS 2,144 B, CSS 9,739 B, hero WebP 38,712 B.
-- Candidate identity: live/local home SHA-256
-  `62d3e36e4e51d6b94001997ee0b7e53bb3523ddd669f5568161e3297980dc86a`; live legal pages and
-  service worker also matched byte-for-byte; `origin/main` was the candidate.
+```sh
+cargo clean
+npm ci
+npm test
+npm run build
+cargo package --manifest-path cli/Cargo.toml --locked --allow-dirty
+```
 
-Full reproduction details and severity are in [verification.md](verification.md). No product
-code was modified. After fixes, rerun the clean build/test/package gates plus the independent
-privacy, numeric extraction, concurrent limit, 390 px axe, and live-header checks.
+- Clean install: 21 packages, 0 audit vulnerabilities.
+- `npm test`: PASS. Strict format and Clippy pass; 7 library tests, 3 binary tests, and
+  1 doctest pass; static policy test passes; expanded proxy integration passes; 4 Chromium
+  Playwright tests pass against the production build.
+- Browser matrix: 1440×900 and 390×844, keyboard skip link/demo/scrollable code, home and
+  legal-page semantics, zero serious/critical axe findings, reduced motion, no console errors,
+  no third-party requests, cookies, localStorage, or sessionStorage.
+- Offline/update: service worker `asp-site-v2` installs and updates; offline reload passes for
+  `/`, `/privacy/`, and `/terms/`.
+- `npm run build`: PASS; outputs `dist/site` and `dist/bin/asp` (7,877,840 bytes).
+  Initial JS is 2,144 bytes, CSS 9,739 bytes, hero WebP 38,712 bytes.
+- `cargo package ... --locked --allow-dirty`: PASS, including package verification; crate is
+  27,090 bytes. A clean install from the packed source reports `asp 0.1.0` and command help
+  works. A separate locked Rust consumer imports and executes `sanitize_path_and_query` and
+  `substitute_variables` from the packed crate.
+- Lighthouse 13.0.1 mobile, live: Performance **100**, Accessibility **100**, Best Practices
+  **100**, SEO **100**; FCP 0.9 s, LCP 1.1 s, TBT 0 ms, CLS 0, Speed Index 0.9 s, 47 KiB.
+- `/opt/fleet/lib/verify-url.sh`: PASS at the live URL in 568 ms; title, `lang`, one `h1`,
+  `main`, image alt, button labels, and zero console errors.
+- Live headers: HTML has CSP, Permissions-Policy, `no-referrer`, nosniff, and HSTS. Hashed JS
+  and WebP return `Cache-Control: public, max-age=31536000, immutable`; Brotli is active and
+  ETag revalidation returns `304`.
+- Live/local SHA-256 identity matches: home
+  `ce801924d8c5297a7904de365361deae589d4fdaa28c1abe91a586131bbb3174`, privacy
+  `d82ef9462d4a06cafd77d7ad4787aa9312abb1b84f273bbabbf4adb57470e1cf`, terms
+  `fb9de8065884c1cb5b050c230139795a4dbe08cec6e1a42992b6ff39da79174d`, and service worker
+  `23481d0352a66a66bc397777f49c84bdc894f7815ace17632b7250cb71ea4874`.
+
+## Deployment
+
+Deployed `dist/site` with:
+
+```sh
+/opt/fleet/lib/deploy-static.sh api-scenario-patch dist/site
+```
+
+Azure deployment `6baa5420-77c2-4eb7-91b2-0f3cb0719663` succeeded. The custom domain is Ready
+and serves HTTP 200 at <https://api-scenario-patch.sociobot.in/>. TLS matches the hostname and
+is valid from 2026-08-28 through 2027-02-28.
+
+## Known scope boundaries
+
+- The CLI remains a loopback reverse proxy rather than a CONNECT MITM proxy. HTTPS upstreams
+  work when clients call the local proxy over HTTP.
+- Relay bodies are buffered up to 10 MiB; persisted JSON remains independently capped at the
+  configured maximum of 1 MiB.
+- Schema-specific JSON redaction remains configuration-driven. Unknown query values and common
+  credential headers are protected automatically; teams must still review any non-secret query
+  allowlist and body/header capture policy.
+- Registry publication and cross-platform release attachment remain factory-owned. The package
+  is ready for `cargo package --manifest-path cli/Cargo.toml --locked` and was not published here.
