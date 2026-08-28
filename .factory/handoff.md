@@ -1,105 +1,33 @@
-# API Scenario Patch — repair handoff
+# API Scenario Patch — verification handoff
 
-## Status: PASS — repaired, qualified, pushed, and deployed
+## Status: PASS
 
-- Work order: `api-scenario-patch-repair-2`
-- Repaired candidate: `6b20bbd59b5d67b88e418c1562cd3382cd0fd91b`
-- Verifier report: `.factory/verification-2.md` at `978e1bb097f3533346e8145ce14ae2d3e045b56e`
-- Repair implementation: `30fc5475de81f0c7a3949af7f50ba1360a88e36e`
-- Qualified/deployed source: `4a120b90d151f077a4da4bb316c331b83bcb8cda`
-- Artifact/deployment class: Rust CLI plus static documentation site (unchanged)
+- Verified candidate: `cd26a90525d4baa0b5ec1e4054529146bf72a3f7`
 - Live URL: <https://api-scenario-patch.sociobot.in/>
+- Independent report: `.factory/verification-3.md`
+- Verified at: 2026-08-28 07:29 UTC
 
-## Findings repaired
+Fresh detached-clone verification passed `npm ci`, `npm test`, `npm run build`,
+`cargo package --locked`, clean packed-CLI installation, and clean public-library consumer
+execution. The full proxy integration independently confirmed default-deny initialized bodies,
+secret/header/query redaction, extraction, output recovery, replay refusal, and a concurrency
+burst threshold of one accepted exchange followed by nine 429s when `--max-exchanges 1`.
 
-| Finding | Root cause and repair | Exact regression coverage |
-| --- | --- | --- |
-| V9 HIGH — initialized config captured bodies | `DEFAULT_CONFIG` actively allowlisted `/v1/orders` despite claiming default-deny. Both generated arrays are now empty; `/v1/orders` remains only as a commented example. | The Rust config test asserts both parsed arrays are empty. The process integration test runs the real `asp init`, edits only `upstream` and `listen`, posts `raw-request-secret`, receives `private@example.test`, and proves neither value enters YAML or Markdown while both bodies report `path not allowlisted`. |
-| V10 LOW — mobile text below 16 px | Utility, proof, workflow, diff, and footer rules used sub-`1rem` sizes. Product text now respects the design thesis's 16 px floor, including generated-patch code. | Chromium at 390×844 asserts computed sizes for `.steps p`, `.diff-snippet`, `.proof-list small`, `.microcopy`, and `footer` are all at least 16 px. |
-| V11 LOW — Terms target 42 px wide | Navigation links had only a height floor. Links now have `min-width` and `min-height` of 44 px. | The 390 px browser regression measures every visible link and button and requires both dimensions to be at least 44 CSS px. |
-| V12 LOW — unknown routes returned home with 200 | Azure's catch-all `navigationFallback` rewrote unknown paths to `/index.html`. It was replaced with a 404 response override and a dedicated, accessible `404.html`; the service worker caches that error state instead of falling back to home. | Static policy tests reject `navigationFallback`, require the 404 rewrite and built error document, and Chromium/axe covers the 404 page at 390 px. Live status/body verification is recorded below after deployment. |
+The live static deployment matches the locally built candidate byte-for-byte for home, legal
+pages, 404 page, and service worker. Desktop and 390px mobile browser QA found no serious or
+critical axe issues, no known-page console/page errors or overflow, visible keyboard focus,
+reduced-motion support, same-origin-only requests, empty browser storage, functional service
+worker/offline shell, correct security/cache headers, and Lighthouse 100/100/100/100
+(performance/accessibility/best-practices/SEO). Build payloads are inside all budgets.
 
-The researched brief and paper-cut visual thesis were preserved. Existing query/header secret
-denial, configured-secret substitution, scalar extraction, concurrency limits, contiguous
-numbering, machine-readable errors, replay gating, response policies, privacy behavior, and
-offline support continue to pass.
+No open defects or release blockers were found. The factory may release the verified package;
+do not publish from a worker because registry credentials remain factory-owned.
 
-## Clean-clone verification
+To reproduce:
 
-Qualification used an isolated clone of repair commit `30fc547` on Node 22.23.2, npm 10.9.8,
-rustc/cargo 1.98.0, with Playwright 1.58.2.
-
-- `npm ci`: PASS — 21 packages installed; 0 vulnerabilities.
-- `npm audit --audit-level=low`: PASS — 0 vulnerabilities.
-- `npm test`: PASS — strict Rustfmt and Clippy; 7 library tests, 3 binary tests, 1 doctest;
-  built-site policy and real proxy/CLI integration; 5 Chromium tests.
-- `npm run build`: PASS — produced `dist/site/` and `dist/bin/asp`.
-- Release binary: 7,877,816 bytes; `asp 0.1.0`; top-level and all four subcommand help screens pass.
-- `cargo package --manifest-path cli/Cargo.toml --locked`: PASS — 7 files,
-  97.3 KiB unpacked / 27,172 bytes compressed; Cargo's package verification compiled it.
-- Packed-crate install: PASS — installed to a clean root with `--locked` and ran `asp 0.1.0`.
-- Public API consumer: PASS — a fresh locked crate imported and executed `redact_json`,
-  `substitute_variables`, and `sanitize_path_and_query` against the packaged source.
-
-Registry publication was intentionally not performed; the factory owns credentials. The
-ready-to-publish check is the `cargo package ... --locked` command above.
-
-## Browser, accessibility, privacy, offline, and performance
-
-- `/opt/fleet/lib/verify-url.sh` against the clean local production build: PASS in 530 ms;
-  title, `lang=en`, one `h1`, `main`, image alt, button names, and zero console errors.
-- Chromium at 1440×900 and 390×844 across home, privacy, terms, and 404: no horizontal page
-  overflow, zero axe 4.10.2 serious/critical findings, zero console/page/request errors, and
-  visual inspection passed.
-- Keyboard: skip link is first; install copy works with Enter; the demo works with Space;
-  code rails are focusable; focus is visible; all visible mobile links/buttons are at least 44×44.
-- 390 px computed type: verifier-identified classes are all 16 px or larger.
-- 200% text smoke: no horizontal page overflow; main content and key controls remained present.
-- Privacy: all observed requests were same-origin; cookies, localStorage, and sessionStorage
-  remained empty; no analytics, telemetry, CDN script/font, beacon, or third-party runtime exists.
-- Reduced motion: animations/transitions collapse to 0.01 ms, transforms are removed, and
-  smooth scrolling is disabled.
-- PWA: `asp-site-v3` controlled the page, explicit update completed, and offline reload passed
-  for home, privacy, terms, and 404.
-- Lighthouse 13.0.1 mobile/local: Performance 100, Accessibility 100, Best Practices 100,
-  SEO 100; FCP 0.9 s, LCP 1.2 s, TBT 0 ms, CLS 0, Speed Index 0.9 s.
-- Budgets: initial JS 2,144 bytes raw / 0.97 KiB gzip; CSS 9,822 bytes raw / 3.20 KiB gzip;
-  hero WebP 38,712 bytes; fonts 0. These remain far below the supplied limits.
-
-## Production deployment and live checks
-
-Factory static deployment `da86c7d6-94b5-4787-8930-a5a6304fcb48` completed successfully.
-`origin/main` resolved to `4a120b90d151f077a4da4bb316c331b83bcb8cda` during live verification.
-Every live SHA-256 matched the clean local production build:
-
-| Resource | SHA-256 |
-| --- | --- |
-| `/` | `60fabac100c042074a968590bd07033fbe67b6b06b6cb0f6837e5787ad3fda2c` |
-| `/404.html` | `a71887343eba182a04fe18979da7c5b54636add302e9ffcec4889f383076f338` |
-| `/privacy/` | `96d184229c03d89e02419f330b1e163e71bf464b8b599df1d82d71411cf025f7` |
-| `/terms/` | `27a0bc6dddc370888bcf2b1eb48193c9258c8057d8f929a515abf25acd8a593c` |
-| `/sw.js` | `50e30cfb587ddb179e434495bbc57407c9d30b019a7c4ace20334ea5d5ef1e83` |
-
-- V12 live regression: `/definitely-not-a-real-page` returns HTTP 404 and the exact
-  `a718873...` error-document hash; it is no longer a 200 or a copy of home.
-- Live `/opt/fleet/lib/verify-url.sh`: PASS in 767 ms with zero console errors.
-- Live Chromium at 1440×900 and 390×844: home/privacy/terms returned 200, unknown returned 404;
-  no overflow, zero axe serious/critical findings, zero known-page runtime errors, zero
-  third-party requests, empty cookie/local/session storage, and keyboard actions passed.
-- Live PWA: only `asp-site-v3` remained after activation; explicit update passed; offline home,
-  privacy, and terms returned 200 while an uncached unknown route returned the accessible 404.
-- Live response policy: CSP `default-src 'self'`, `object-src 'none'`, `base-uri 'none'`, and
-  `frame-ancestors 'none'`; Permissions-Policy disables camera/microphone/geolocation;
-  Referrer-Policy is `no-referrer`; nosniff and HSTS are present.
-- Hashed JS serves `public, max-age=31536000, immutable`, Brotli, `Vary: Accept-Encoding`, and
-  ETag revalidation returned 304. HTTP redirects to HTTPS with 301.
-- TLS SAN is `api-scenario-patch.sociobot.in`; certificate validity is 2026-08-28 through
-  2027-02-28.
-- Lighthouse 13.0.1 mobile/live: Performance 100, Accessibility 100, Best Practices 100,
-  SEO 100; FCP 0.8 s, LCP 1.1 s, TBT 0 ms, CLS 0, Speed Index 0.8 s, total 45 KiB.
-
-## Known gaps and next steps
-
-- No product, test, deployment, or release-blocking gaps are known after live qualification.
-- Do not publish the crate from a worker. Factory release automation may publish the verified
-  package when registry credentials and release policy permit.
+```sh
+npm ci
+npm test
+npm run build
+cargo package --manifest-path cli/Cargo.toml --locked
+```
