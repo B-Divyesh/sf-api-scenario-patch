@@ -1,5 +1,5 @@
-const CACHE = 'asp-site-v2';
-const SHELL = ['/', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/favicon.svg'];
+const CACHE = 'asp-site-v3';
+const SHELL = ['/', '/404.html', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -25,5 +25,16 @@ self.addEventListener('fetch', (event) => {
     const copy = response.clone();
     caches.open(CACHE).then((cache) => cache.put(event.request, copy));
     return response;
-  }).catch(() => caches.match(event.request).then((response) => response || caches.match('/'))));
+  }).catch(async () => {
+    const cached = await caches.match(event.request);
+    if (cached) return cached;
+    if (event.request.mode === 'navigate') {
+      const notFound = await caches.match('/404.html');
+      return new Response(await notFound.text(), {
+        status: 404,
+        headers: notFound.headers,
+      });
+    }
+    return Response.error();
+  }));
 });

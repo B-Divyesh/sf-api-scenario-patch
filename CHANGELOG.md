@@ -9,3 +9,5 @@
 - Made concurrent exchange limits strict, successful step numbering contiguous, and JSON
   error output machine-readable for both parser and validation failures.
 - Added the Azure-native security/cache policy and mobile keyboard access for scrollable code.
+- Made generated body capture truly default-deny, added a real 404 state, and enforced the
+  16 px mobile type and 44 px target floors.

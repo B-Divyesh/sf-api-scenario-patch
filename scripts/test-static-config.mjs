@@ -4,6 +4,11 @@ import { readFile } from 'node:fs/promises';
 const source = JSON.parse(await readFile('site/public/staticwebapp.config.json', 'utf8'));
 const built = JSON.parse(await readFile('dist/site/staticwebapp.config.json', 'utf8'));
 assert.deepEqual(built, source, 'production build must contain the reviewed Azure policy');
+assert.equal('navigationFallback' in source, false, 'unknown routes must not rewrite to home');
+assert.equal(source.responseOverrides?.['404']?.rewrite, '/404.html');
+const notFound = await readFile('dist/site/404.html', 'utf8');
+assert.match(notFound, /<title>Page not found — API Scenario Patch<\/title>/);
+assert.match(notFound, /<h1>That route was not recorded\.<\/h1>/);
 
 const headers = Object.fromEntries(
   Object.entries(source.globalHeaders).map(([name, value]) => [name.toLowerCase(), value]),
@@ -20,4 +25,4 @@ for (const route of ['/assets/*', '/*.webp']) {
   assert.equal(policy.headers['Cache-Control'], 'public, max-age=31536000, immutable');
 }
 
-console.log('Static response policy: Azure config, security headers, and immutable assets verified');
+console.log('Static response policy: 404 state, Azure config, security headers, and immutable assets verified');

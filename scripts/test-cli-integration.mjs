@@ -88,6 +88,56 @@ const upstream = createServer((request, response) => {
 });
 const upstreamPort = await listen(upstream);
 
+// V9: run the actual asp init output after changing only its upstream and listen
+// values. Arbitrary request and response fields must remain omitted by default.
+const defaultUpstream = createServer((request, response) => {
+  request.resume();
+  request.on('end', () => {
+    response.writeHead(201, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ customer_email: 'private@example.test', id: 'ord-default' }));
+  });
+});
+const defaultUpstreamPort = await listen(defaultUpstream);
+const defaultProxyPort = await reservePort();
+const generatedConfigPath = join(temporary, 'generated-default.toml');
+const initialized = spawnSync(binary, [
+  'init', '--config', generatedConfigPath, '--json',
+], { cwd: process.cwd(), encoding: 'utf8' });
+assert.equal(initialized.status, 0, initialized.stderr);
+assert.equal(JSON.parse(initialized.stdout).ok, true);
+let generatedConfig = await readFile(generatedConfigPath, 'utf8');
+assert.match(generatedConfig, /^request_body_paths = \[\]$/m);
+assert.match(generatedConfig, /^response_body_paths = \[\]$/m);
+assert.match(generatedConfig, /^# request_body_paths = \["\/v1\/orders"\]$/m);
+assert.match(generatedConfig, /^# response_body_paths = \["\/v1\/orders"\]$/m);
+generatedConfig = generatedConfig
+  .replace('https://api.example.com', `http://127.0.0.1:${defaultUpstreamPort}`)
+  .replace('127.0.0.1:4317', `127.0.0.1:${defaultProxyPort}`);
+await writeFile(generatedConfigPath, generatedConfig);
+const defaultOutput = join(temporary, 'generated-default');
+const defaultRecorder = spawn(binary, [
+  'record', '--config', generatedConfigPath, '--output', defaultOutput,
+  '--max-exchanges', '1', '--json',
+], { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
+const defaultStderr = await waitForRecorder(defaultRecorder);
+const defaultResponse = await fetch(`http://127.0.0.1:${defaultProxyPort}/v1/orders`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ unconfigured_secret: 'raw-request-secret' }),
+});
+assert.equal(defaultResponse.status, 201);
+await defaultResponse.text();
+assert.equal(await waitForExit(defaultRecorder), 0, defaultStderr());
+for (const output of [
+  await readFile(`${defaultOutput}.yml`, 'utf8'),
+  await readFile(`${defaultOutput}.md`, 'utf8'),
+]) {
+  assert.equal(output.includes('raw-request-secret'), false);
+  assert.equal(output.includes('private@example.test'), false);
+  assert.match(output, /path not allowlisted/);
+}
+await close(defaultUpstream);
+
 // V1/V2: credential-shaped query/header values never persist, configured secrets are
 // replaced, and extracted number/boolean values replace exact JSON scalars.
 const proxyPort = await reservePort();
@@ -274,4 +324,4 @@ assert.equal(replayRefusal.status, 2);
 assert.match(replayRefusal.stderr, /replay refused/);
 
 await close(upstream);
-console.log('CLI integration: privacy, scalar variables, hard concurrency, recovery, and JSON errors verified');
+console.log('CLI integration: generated default-deny policy, privacy, scalar variables, hard concurrency, recovery, and JSON errors verified');

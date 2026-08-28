@@ -27,9 +27,12 @@ upstream = "https://api.example.com"
 listen = "127.0.0.1:4317"
 
 [capture]
-# Bodies are default-deny. Allow only the route prefixes the patch needs.
-request_body_paths = ["/v1/orders"]
-response_body_paths = ["/v1/orders"]
+# Bodies are default-deny. Keep these arrays empty until reviewed routes are needed.
+request_body_paths = []
+response_body_paths = []
+# Example body opt-ins (replace the empty arrays above only after review):
+# request_body_paths = ["/v1/orders"]
+# response_body_paths = ["/v1/orders"]
 # Sensitive headers are always denied, even if listed here.
 headers = ["content-type", "x-request-id", "location"]
 # Query values are denied by default. List only non-secret parameters worth reviewing.
@@ -690,6 +693,8 @@ mod tests {
         config.validate().unwrap();
         assert!(config.listen_addr().unwrap().ip().is_loopback());
         assert!(!config.replay.enabled);
+        assert!(config.capture.request_body_paths.is_empty());
+        assert!(config.capture.response_body_paths.is_empty());
         assert!(is_sensitive_header("Authorization"));
         assert!(is_sensitive_header("X-API-Key"));
     }
