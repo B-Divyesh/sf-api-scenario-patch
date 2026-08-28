@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="API Scenario Patch">
+  <rect width="64" height="64" rx="8" fill="#111815"/>
+  <path d="M14 16h26l10 10v25H14z" fill="#f4edda"/>
+  <path d="M40 16v11h10" fill="#d4bea0"/>
+  <path d="M20 33h24M20 40h16" stroke="#f06a4f" stroke-width="5"/>
+  <path d="M20 48h20" stroke="#c9f27b" stroke-width="4"/>
+</svg>

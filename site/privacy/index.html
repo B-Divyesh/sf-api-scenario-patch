@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111815">
+    <meta name="description" content="Privacy policy for API Scenario Patch.">
+    <title>Privacy — API Scenario Patch</title>
+    <link rel="stylesheet" href="/src/styles.css">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>API Scenario Patch</span></a><nav aria-label="Primary navigation"><a href="/">Back home</a></nav></header>
+    <main id="main" class="legal-page">
+      <p class="kicker">Plain-language policy · effective August 28, 2026</p>
+      <h1>Privacy</h1>
+      <p>API Scenario Patch is local-first software. The CLI does not send telemetry, crash reports, captured requests, configuration, or generated patches to us.</p>
+      <h2>The website</h2>
+      <p>This static website does not use analytics, cookies, fingerprinting, accounts, forms, or third-party scripts. Its interactive demo runs entirely in your browser and stores nothing. A service worker may cache public site files on your device so the documentation works offline; clearing site data removes that cache.</p>
+      <h2>The CLI</h2>
+      <p>The proxy forwards traffic only to the upstream that you configure. Capture data stays in memory until shutdown, then the CLI writes the two paths you requested. Sensitive headers are always excluded. Bodies are excluded unless their route is explicitly allowlisted.</p>
+      <h2>Your control</h2>
+      <p>You control the configuration and generated files. Review patches before committing them. Because there is no API Scenario Patch service or account, we do not possess data to export or delete.</p>
+      <h2>Contact</h2>
+      <p>Open a repository issue for privacy questions. Policy changes will be recorded in Git.</p>
+    </main>
+    <footer><p>API Scenario Patch · MIT licensed · no telemetry</p><nav aria-label="Legal navigation"><a href="/privacy/" aria-current="page">Privacy</a><a href="/terms/">Terms</a></nav></footer>
+  </body>
+</html>

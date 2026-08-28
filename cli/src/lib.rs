@@ -2,6 +2,14 @@
 //!
 //! The public surface is intentionally small: load a [`Config`], validate it, and
 //! transform JSON values with [`redact_json`] or [`substitute_variables`].
+//!
+//! ```
+//! use api_scenario_patch::redact_json;
+//! let mut body = serde_json::json!({"token": "do-not-write"});
+//! redact_json(&mut body, "$.token", "${REDACTED}")?;
+//! assert_eq!(body["token"], "${REDACTED}");
+//! # Ok::<(), anyhow::Error>(())
+//! ```
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};

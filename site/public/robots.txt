@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://api-scenario-patch.sociobot.in/sitemap.xml
