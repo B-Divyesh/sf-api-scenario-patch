@@ -1,33 +1,34 @@
-# Repair handoff — perfection loop round 1
+# Adversarial review 2 handoff
 
-## Completed repair
+## What was done
 
-- Reworked the first screen around the reviewed job: **Record API flows for Git review.** It now names small API teams, names the Markdown and YAML result, and puts **Try it with sample data** in the first screen.
-- Added `asp demo`, bundled checkout-retry input in `examples/checkout-retry/`, and isolated temporary Markdown/YAML output. `asp demo --json` prints the exact output paths.
-- Added `/demo/` and `?demo=1`, a self-hosted terminal recording, the persistent `Demo — sample data, nothing is saved` banner, Reset demo, and Start for real.
-- Added `.factory/claims.json`, one `@claim:<id>` test per listed claim, plus `.factory/demo.md` and `.factory/copy-audit.md`.
-- Added consistent real routes, shared header/footer, 404, route titles, canonical/OG/Twitter metadata, 1200 × 630 project-art preview, 180 px touch icon, sitemap entry, focus-to-`h1`, and route announcement regions.
-- Kept the paper-cut diorama identity. The social crop and touch image derive from the recorded original project artwork; provenance is in `.factory/design.md`.
+- Completed fresh mobile (390 × 844) and desktop (1440 × 900) cold-read reviews of the live deployment.
+- Audited every landing and README sentence, heading, action, jargon term, claim, and product term.
+- Exercised the browser demo, reset/exit behavior, storage isolation, request log, console, offline reload, and CLI demo.
+- Ran every `.factory/claims.json` command independently from clean clone `/tmp/api-scenario-patch-review2-clean-L0qh3o`.
+- Rechecked every finding from `.factory/review-1.md` against the live site and source.
+- Crawled live links and checked routes, metadata, 404 behavior, focus/history, headers, visual identity, and Axe accessibility.
+- Wrote the evidence and FAIL verdict in `.factory/review-2.md`.
 
-## Verification evidence
+No product code was changed.
 
-- `npm ci && npm test` — PASS: rustfmt, strict Clippy, 10 Rust unit tests, 1 doctest, static-policy test, live proxy integration, all claim tests, and 9 Playwright tests.
-- `npm run build` — PASS: produces `dist/site` plus the release CLI artifact in `dist/`.
-- `npm run test:claims` — PASS: 10 claim tests. Browser claims use fresh contexts, whole-flow request interception, storage checks, reset, and offline reload.
-- Playwright Axe checks found no serious or critical violations on the landing, mobile landing, and 404 states. The 390 px test confirms no horizontal overflow, 16 px text floor, and 44 px visible controls.
-- Initial site JS: 2.60 kB gzip; CSS: 3.75 kB gzip. Both are within the static budget.
+## Verification
 
-## Clean-clone claim evidence
+- `npm test` — PASS.
+- `npm run build` — PASS; `dist/site` and `dist/bin/asp` produced.
+- All 10 listed claim commands from the clean clone — PASS as commands; three have inadequate coverage and several live/README claims are unlisted.
+- `/opt/fleet/lib/verify-url.sh https://api-scenario-patch.sociobot.in <temp-dir>` — PASS.
+- Live Axe — root, Privacy, Terms, and 404 have zero serious/critical violations; demo has one serious `scrollable-region-focusable` violation.
+- Exact live `cargo install --path cli` instruction from an empty temporary directory — FAIL, as expected by finding F-2-1.
 
-At repair commit `47499d3fedee2c81e5402bbf8ad6e8cf794c4ba5`, a new local clone at
-`/tmp/asp-clean-y7nJr8` ran `npm ci && npm run test:claims` successfully. That command
-ran all 10 manifest claims: six isolated CLI tests and four fresh-browser Playwright
-tests. Playwright recorded `{"status":"passed","failedTests":[]}`.
+## Findings left for repair
 
-## Known gaps
+The review verdict is FAIL with 19 blocking findings and one minor finding. Highest priority:
 
-No blocking product gaps are known. The repair was pushed to `main` at
-`762eb76af02670f3d260eb27407dc4a807162274`. Deployment is factory-owned; the repository
-contains the static `dist/site` artifact and Azure Static Web Apps configuration, but no
-deployment credential or deploy command. At handoff, the prior live deployment still
-returned 404 for `/demo/`, so the factory rollout has not yet reached the public URL.
+1. Provide an install command that works for a visitor outside a repository checkout.
+2. Make the mobile demo terminal focusable and keyboard-scrollable.
+3. Preserve landing scroll position through Privacy navigation and browser Back.
+4. Add and strengthen claim entries/tests for the core record flow and privacy boundaries.
+5. Remove remaining jargon, term drift, and the context-free README heading.
+
+See `.factory/review-2.md` for exact quotes, evidence, and concrete fixes.
