@@ -1,0 +1,12 @@
+{
+  "slug": "api-scenario-patch",
+  "title": "API Scenario Patch",
+  "territory": "devtools-data",
+  "user": "Small API teams that need to review a realistic, multi-step request scenario in Git without sharing a hosted API-client workspace.",
+  "smallest_useful_product": "A CLI/proxy that records an opted-in sequence of HTTP exchanges, replaces configured secrets with placeholders, extracts selected response values into named variables, and writes a deterministic Markdown plus YAML scenario patch.",
+  "success_measure": "At least 50% of pilot scenario patches are reviewed in a normal pull request without a reviewer asking for an external workspace or copied credentials.",
+  "artifact_class": "cli",
+  "monetization": "free",
+  "constraints": "Default-deny recording of authorization headers, cookies, and bodies; redact JSON paths before writing; make replay explicit and disabled by default.",
+  "state": "RESEARCHED"
+}
