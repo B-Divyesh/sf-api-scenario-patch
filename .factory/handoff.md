@@ -1,90 +1,43 @@
-# API Scenario Patch v0.1.0 — handoff
+# API Scenario Patch — verification handoff
 
-## What shipped
+## Status: FAIL
 
-- A Rust single-binary CLI named `asp` with four non-interactive commands:
-  `init`, `check`, `record`, and `replay`.
-- `record` runs an HTTP/HTTPS-upstream reverse proxy bound to loopback, accepts traffic
-  from an existing API client, preserves request arrival order, and writes deterministic
-  `.yml` plus `.md` scenario patches on Ctrl+C or `--max-exchanges`.
-- Privacy defaults are enforced in code: authorization, proxy authorization, cookie,
-  and set-cookie headers are never persisted; bodies are denied unless their path is
-  allowlisted; only JSON bodies are captured; capture size is bounded; upstream URLs
-  cannot contain credentials; public listener addresses are rejected.
-- JSON-path redaction supports object keys, array indices, and wildcard array members.
-  Response values can be extracted into named variables; raw extracted values are
-  replaced by `${name}` in the observed response and later requests before disk writes.
-- Replay is disabled by default and requires both a reviewed config setting and the
-  `--confirm` command flag. The target host must be allowlisted and unresolved or
-  omitted request data causes a refusal rather than a guess.
-- A responsive static documentation site with an original paper-cut visual system,
-  browser-only redaction demo, keyboard interactions, offline status, service-worker
-  shell cache, immutable asset headers, privacy page, and terms page.
-- README-first API documentation, MIT license, changelog, typed Rust library surface,
-  and a compiling doctest.
+Independent QA tested commit `2fff4290c0d46425bc04459ef02b551979cb85bc` and
+<https://api-scenario-patch.sociobot.in/> on 2026-08-28. The live static files match the
+candidate, but the candidate is not ready to release.
 
-## Build and deploy
+Release blockers:
 
-```sh
-npm ci
-npm run build
-```
+1. Query credentials such as `?api_key=query-secret` are persisted verbatim, and common
+   credential headers such as `X-API-Key` can also be persisted with no redaction mechanism.
+2. Numeric extracted IDs remain raw in observed responses and later JSON request bodies even
+   though a variable is declared.
+3. Axe reports a serious keyboard-access violation at 390 px on the horizontally scrollable
+   final command.
+4. Ten concurrent requests produced 10 captured steps despite `--max-exchanges 1`.
+5. The live platform is not applying the committed CSP, Permissions-Policy, no-referrer policy,
+   or immutable caching rules.
 
-The exact build command is `npm run build`. Static deployment root is `dist/site`
-(`dist/site/index.html` exists). The same command also places the release binary at
-`dist/bin/asp` for artifact collection.
+Additional low-severity findings: recovery after a failed upstream call can make a one-step
+patch start at step 2; strict clippy fails on one formatting lint; `--json` errors are not JSON.
 
-For registry readiness (do not publish from a worker):
+## Verification summary
 
-```sh
-cargo package --manifest-path cli/Cargo.toml --allow-dirty
-```
+- `npm ci`: PASS; 0 audit vulnerabilities.
+- `npm test`: PASS (8 unit, 1 doctest, CLI integration, 4 Playwright tests).
+- `npm run build`: PASS; produced `dist/site` and `dist/bin/asp`.
+- `cargo package --manifest-path cli/Cargo.toml --locked --allow-dirty`: PASS and verified.
+- Packaged CLI install and clean public-API consumer: PASS.
+- Lighthouse live mobile: 100 performance / 100 accessibility / 100 best practices / 100 SEO;
+  FCP 0.9s, LCP 1.1s, TBT 0ms, CLS 0, 46 KiB transfer.
+- Desktop 1440 px and mobile 390 px visual/keyboard/browser checks completed. No console or page
+  errors, no third-party initial requests, no cookies or web storage. Reduced motion and offline
+  reload of home/privacy/terms passed.
+- Bundle budgets pass: JS 2,144 B, CSS 9,739 B, hero WebP 38,712 B.
+- Candidate identity: live/local home SHA-256
+  `62d3e36e4e51d6b94001997ee0b7e53bb3523ddd669f5568161e3297980dc86a`; live legal pages and
+  service worker also matched byte-for-byte; `origin/main` was the candidate.
 
-This produced a 23.7 KiB compressed crate package locally.
-
-## Verification completed
-
-- `npm test`: passes.
-  - 8 Rust unit tests and 1 compiling doctest pass.
-  - Live integration test passes two HTTP exchanges through the proxy and asserts the
-    resulting YAML and Markdown contain none of the authorization/cookie values, card
-    number, response token, or raw extracted ID.
-  - The integration test also verifies `${order_id}` reuse, reviewer notes, local JSON
-    redaction, and replay refusal with exit code 2 when `--confirm` is absent.
-  - 4 Playwright tests pass in Chromium 145: keyboard demo, 390px layout/no overflow,
-    privacy and terms routes, offline state, reduced motion, no page errors, and axe.
-- `npm audit`: 0 known vulnerabilities.
-- `npm run build`: passes; optimized site and Rust release binary produced.
-- `cargo package --manifest-path cli/Cargo.toml --allow-dirty --no-verify`: passes.
-- The documented Git install shape was verified from the committed repository with
-  `cargo install --git file:///work/repo api-scenario-patch --locked`.
-- Lighthouse 13 mobile against the local site:
-  - Performance: **97**
-  - Accessibility: **100**
-  - Best practices: **100**
-  - SEO: **100**
-  - FCP 2.1 s, LCP 2.2 s, CLS 0, TBT 0 ms, Speed Index 2.1 s
-- Initial site assets: JS 2.14 KB / 0.97 KB gzip; CSS 9.74 KB / 3.21 KB gzip;
-  hero WebP 38,712 bytes. These are comfortably inside the 200 KB JS, 50 KB CSS,
-  and 300 KB hero budgets.
-- Visual inspection completed at desktop and 390px-equivalent mobile sizes.
-
-## Original asset
-
-`site/public/paper-cut-api-flow.webp` was generated with the factory image service via
-`/opt/fleet/lib/gen-image.sh` at 1536×1024, visually inspected, resized to 1280×853,
-stripped, and encoded as a 38,712-byte WebP. The complete prompt and provenance are in
-`.factory/design.md`.
-
-## Known gaps / next steps
-
-- v1 is a reverse proxy, not a general CONNECT MITM proxy. HTTPS upstreams work when
-  clients call the local proxy over HTTP, but transparent interception of arbitrary
-  HTTPS client traffic is intentionally out of scope.
-- Relayed request and response bodies are buffered with a 10 MiB relay ceiling; captured
-  JSON is separately limited to at most 1 MiB by policy. Streaming media APIs should
-  bypass this tool.
-- Redaction is configuration-driven. Teams must review their API schema and config;
-  the CLI deliberately does not claim to discover unknown secrets automatically.
-- The factory still needs to attach cross-platform release binaries and deploy
-  `dist/site`. No registry publication, DNS, billing, or infrastructure action was taken.
+Full reproduction details and severity are in [verification.md](verification.md). No product
+code was modified. After fixes, rerun the clean build/test/package gates plus the independent
+privacy, numeric extraction, concurrent limit, 390 px axe, and live-header checks.
