@@ -33,8 +33,8 @@ asp record --config scenario-patch.toml --output checkout-flow
 ```
 
 The command writes `checkout-flow.yml` and `checkout-flow.md`. Authorization, proxy
-authorization, cookies, set-cookie, and all bodies are omitted unless explicitly
-allowed. Matching JSON paths are redacted before anything reaches disk.
+authorization, cookies, set-cookie, common API-key headers, query values, and all bodies
+are denied by default. Matching JSON paths are redacted before anything reaches disk.
 
 Inspect configuration without starting a listener:
 
@@ -58,8 +58,28 @@ CLI is safe to use in CI.
 
 `asp init` writes a commented example. Body rules are path prefixes (for example
 `/v1/orders`); JSON paths use a small, deterministic subset such as `$.user.token` and
-`$.items[*].secret`. Extractions select response paths and become `${variable}` in later
-captured request paths and bodies when values match exactly.
+`$.items[*].secret`. Extractions select string, number, or boolean response values and
+become `${variable}` in the observed response and later captured paths, headers, and
+bodies when values match.
+
+Query parameter values are written as `${REDACTED_QUERY}` unless their names appear in
+`capture.query_parameters`. Credential-shaped names such as `api_key`, `access_token`,
+`password`, and `signature` remain redacted even if listed. This keeps the exceptional
+capture path explicit without allowing common query credentials into Git.
+
+For secrets that can appear outside known JSON paths, reference an environment variable;
+the secret itself never belongs in the TOML file:
+
+```toml
+[[secrets]]
+name = "API_KEY"
+environment = "CHECKOUT_API_KEY"
+```
+
+With `CHECKOUT_API_KEY` set, exact occurrences are written as `${API_KEY}` across captured
+paths, allowed query values, headers, and JSON bodies. A missing or empty variable stops
+recording before the listener starts. `--max-exchanges` reserves capacity before forwarding,
+so concurrent requests beyond the limit receive `429` and are not captured.
 
 ## Development
 

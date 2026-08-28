@@ -1,4 +1,4 @@
-const CACHE = 'asp-site-v1';
+const CACHE = 'asp-site-v2';
 const SHELL = ['/', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

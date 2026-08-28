@@ -32,7 +32,15 @@ request_body_paths = ["/v1/orders"]
 response_body_paths = ["/v1/orders"]
 # Sensitive headers are always denied, even if listed here.
 headers = ["content-type", "x-request-id", "location"]
+# Query values are denied by default. List only non-secret parameters worth reviewing.
+query_parameters = ["page", "status"]
 max_body_bytes = 262144
+
+# Configured secrets come from the environment, never from this file. Their values are
+# replaced with the named placeholder everywhere a captured value can appear.
+# [[secrets]]
+# name = "API_KEY"
+# environment = "CHECKOUT_API_KEY"
 
 [[redactions]]
 json_path = "$.payment.card_number"
@@ -70,6 +78,8 @@ pub struct Config {
     #[serde(default)]
     pub notes: Vec<NoteRule>,
     #[serde(default)]
+    pub secrets: Vec<SecretRule>,
+    #[serde(default)]
     pub replay: ReplayConfig,
 }
 
@@ -83,6 +93,7 @@ pub struct CaptureConfig {
     pub request_body_paths: Vec<String>,
     pub response_body_paths: Vec<String>,
     pub headers: Vec<String>,
+    pub query_parameters: Vec<String>,
     pub max_body_bytes: usize,
 }
 
@@ -92,9 +103,17 @@ impl Default for CaptureConfig {
             request_body_paths: vec![],
             response_body_paths: vec![],
             headers: vec!["content-type".into(), "location".into()],
+            query_parameters: vec![],
             max_body_bytes: 262_144,
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretRule {
+    pub name: String,
+    pub environment: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -199,6 +218,28 @@ impl Config {
                 bail!("reviewer note cannot be empty");
             }
         }
+        for secret in &self.secrets {
+            if !names.insert(&secret.name) {
+                bail!("duplicate variable or secret name: {}", secret.name);
+            }
+            if !is_variable_name(&secret.name) {
+                bail!(
+                    "invalid secret name {:?}; use letters, digits, and underscores",
+                    secret.name
+                );
+            }
+            if !is_environment_name(&secret.environment) {
+                bail!("invalid environment variable name {:?}", secret.environment);
+            }
+        }
+        if self
+            .capture
+            .query_parameters
+            .iter()
+            .any(|name| name.trim().is_empty())
+        {
+            bail!("capture.query_parameters cannot contain an empty name");
+        }
         let host = url
             .host_str()
             .ok_or_else(|| anyhow!("upstream must include a host"))?;
@@ -217,6 +258,28 @@ impl Config {
     pub fn listen_addr(&self) -> Result<SocketAddr> {
         Ok(self.listen.parse()?)
     }
+
+    pub fn configured_secrets(&self) -> Result<HashMap<String, String>> {
+        self.secrets
+            .iter()
+            .map(|secret| {
+                let value = std::env::var(&secret.environment).with_context(|| {
+                    format!(
+                        "secret {} requires environment variable {}",
+                        secret.name, secret.environment
+                    )
+                })?;
+                if value.is_empty() {
+                    bail!(
+                        "secret {} requires non-empty environment variable {}",
+                        secret.name,
+                        secret.environment
+                    );
+                }
+                Ok((secret.name.clone(), value))
+            })
+            .collect()
+    }
 }
 
 fn validate_route_prefix(path: &str) -> Result<()> {
@@ -230,6 +293,14 @@ fn is_variable_name(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+fn is_environment_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 pub fn path_allowed(path: &str, prefixes: &[String]) -> bool {
     prefixes.iter().any(|prefix| {
         path == prefix
@@ -240,10 +311,90 @@ pub fn path_allowed(path: &str, prefixes: &[String]) -> bool {
 }
 
 pub fn is_sensitive_header(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
     matches!(
-        name.to_ascii_lowercase().as_str(),
-        "authorization" | "proxy-authorization" | "cookie" | "set-cookie"
-    )
+        name.as_str(),
+        "authorization"
+            | "proxy-authorization"
+            | "cookie"
+            | "set-cookie"
+            | "api-key"
+            | "x-api-key"
+            | "x-auth-token"
+            | "x-access-token"
+            | "x-client-secret"
+            | "x-app-secret"
+            | "x-amz-security-token"
+            | "x-goog-api-key"
+    ) || name.ends_with("-api-key")
+}
+
+pub fn is_sensitive_query_parameter(name: &str) -> bool {
+    let normalized = name
+        .trim_end_matches("[]")
+        .to_ascii_lowercase()
+        .replace(['-', '.'], "_");
+    matches!(
+        normalized.as_str(),
+        "api_key"
+            | "apikey"
+            | "access_token"
+            | "auth"
+            | "authorization"
+            | "credential"
+            | "key"
+            | "password"
+            | "secret"
+            | "sig"
+            | "signature"
+            | "token"
+    ) || [
+        "_api_key",
+        "_access_token",
+        "_credential",
+        "_password",
+        "_secret",
+        "_signature",
+        "_token",
+    ]
+    .iter()
+    .any(|suffix| normalized.ends_with(suffix))
+}
+
+/// Return a review-safe path. Query parameter names remain visible, while values are
+/// redacted unless explicitly allowlisted. Credential-shaped names are always redacted.
+pub fn sanitize_path_and_query(
+    path_and_query: &str,
+    allowlist: &[String],
+    variables: &HashMap<String, String>,
+) -> String {
+    let (path, query) = path_and_query
+        .split_once('?')
+        .map_or((path_and_query, None), |(path, query)| (path, Some(query)));
+    let path = substitute_text(path, variables);
+    let Some(query) = query.filter(|query| !query.is_empty()) else {
+        return path;
+    };
+    let allowed: std::collections::HashSet<_> = allowlist
+        .iter()
+        .map(|name| name.to_ascii_lowercase())
+        .collect();
+    let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+    for (name, value) in url::form_urlencoded::parse(query.as_bytes()) {
+        let safe_value = if is_sensitive_query_parameter(&name)
+            || !allowed.contains(&name.to_ascii_lowercase())
+        {
+            "${REDACTED_QUERY}".to_string()
+        } else {
+            substitute_text(&value, variables)
+        };
+        serializer.append_pair(&name, &safe_value);
+    }
+    let query = serializer
+        .finish()
+        .replace("%24%7B", "${")
+        .replace("%7D", "}");
+    format!("{path}?{query}")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -344,6 +495,16 @@ fn replace_at(value: &mut Value, segments: &[Segment], replacement: &Value) -> u
 pub fn substitute_variables(value: &mut Value, variables: &HashMap<String, String>) {
     match value {
         Value::String(text) => *text = substitute_text(text, variables),
+        Value::Number(number) => {
+            if let Some(name) = exact_variable_name(&number.to_string(), variables) {
+                *value = Value::String(format!("${{{name}}}"));
+            }
+        }
+        Value::Bool(boolean) => {
+            if let Some(name) = exact_variable_name(&boolean.to_string(), variables) {
+                *value = Value::String(format!("${{{name}}}"));
+            }
+        }
         Value::Array(items) => items
             .iter_mut()
             .for_each(|item| substitute_variables(item, variables)),
@@ -352,6 +513,14 @@ pub fn substitute_variables(value: &mut Value, variables: &HashMap<String, Strin
             .for_each(|item| substitute_variables(item, variables)),
         _ => {}
     }
+}
+
+fn exact_variable_name<'a>(value: &str, variables: &'a HashMap<String, String>) -> Option<&'a str> {
+    variables
+        .iter()
+        .filter(|(_, candidate)| candidate.as_str() == value)
+        .map(|(name, _)| name.as_str())
+        .min()
 }
 
 pub fn substitute_text(text: &str, variables: &HashMap<String, String>) -> String {
@@ -522,6 +691,7 @@ mod tests {
         assert!(config.listen_addr().unwrap().ip().is_loopback());
         assert!(!config.replay.enabled);
         assert!(is_sensitive_header("Authorization"));
+        assert!(is_sensitive_header("X-API-Key"));
     }
 
     #[test]
@@ -544,6 +714,45 @@ mod tests {
         assert_eq!(
             substitute_text("/orders/ord_42", &vars),
             "/orders/${order_id}"
+        );
+    }
+
+    #[test]
+    fn numeric_and_boolean_variables_replace_exact_json_scalars() {
+        let mut value = serde_json::json!({
+            "id": 42,
+            "enabled": true,
+            "nested": [42, false],
+            "text": "order-42"
+        });
+        let vars = HashMap::from([
+            ("order_id".into(), "42".into()),
+            ("enabled".into(), "true".into()),
+        ]);
+        substitute_variables(&mut value, &vars);
+        assert_eq!(value["id"], "${order_id}");
+        assert_eq!(value["enabled"], "${enabled}");
+        assert_eq!(value["nested"][0], "${order_id}");
+        assert_eq!(value["nested"][1], false);
+        assert_eq!(value["text"], "order-${order_id}");
+    }
+
+    #[test]
+    fn query_values_default_to_redacted_and_credential_names_cannot_be_allowed() {
+        let vars = HashMap::from([("ORDER_ID".into(), "42".into())]);
+        let safe = sanitize_path_and_query(
+            "/orders/42?api_key=query-secret&page=2&cursor=42",
+            &["api_key".into(), "page".into(), "cursor".into()],
+            &vars,
+        );
+        assert_eq!(
+            safe,
+            "/orders/${ORDER_ID}?api_key=${REDACTED_QUERY}&page=2&cursor=${ORDER_ID}"
+        );
+        assert!(!safe.contains("query-secret"));
+        assert_eq!(
+            sanitize_path_and_query("/orders?unknown=value", &[], &HashMap::new()),
+            "/orders?unknown=${REDACTED_QUERY}"
         );
     }
 

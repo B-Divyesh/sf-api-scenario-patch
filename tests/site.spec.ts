@@ -27,18 +27,36 @@ test('390px layout has no horizontal page overflow', async ({ page }) => {
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewport);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await page.locator('#start-command').focus();
+  await expect(page.locator('#start-command')).toBeFocused();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
 test('privacy, terms, and offline state are reachable', async ({ page, context }) => {
+  const foreignRequests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== 'http://127.0.0.1:4173') foreignRequests.push(request.url());
+  });
   for (const route of ['/privacy/', '/terms/']) {
     await page.goto(route);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('main')).toBeVisible();
   }
   await page.goto('/');
+  await page.evaluate(async () => navigator.serviceWorker.ready);
+  await page.reload();
+  expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  expect(await page.evaluate(async () => (await caches.keys()).includes('asp-site-v2'))).toBe(true);
+  await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
+  expect(await context.cookies()).toEqual([]);
+  expect(await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }))).toEqual({ local: 0, session: 0 });
+  expect(foreignRequests).toEqual([]);
   await context.setOffline(true);
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-  await expect(page.getByRole('status')).toContainText('Offline');
+  for (const route of ['/', '/privacy/', '/terms/']) {
+    await page.goto(route);
+    await expect(page.locator('main')).toBeVisible();
+  }
   await context.setOffline(false);
 });
 

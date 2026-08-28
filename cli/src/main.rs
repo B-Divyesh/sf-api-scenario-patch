@@ -1,8 +1,8 @@
 use anyhow::{anyhow, bail, Context, Result};
 use api_scenario_patch::{
-    is_sensitive_header, markdown, parse_capture, path_allowed, select_json, substitute_text,
-    CapturedBody, Config, RecordedRequest, RecordedResponse, Scenario, Step, VariableDefinition,
-    DEFAULT_CONFIG,
+    is_sensitive_header, markdown, parse_capture, path_allowed, sanitize_path_and_query,
+    select_json, substitute_text, CapturedBody, Config, RecordedRequest, RecordedResponse,
+    Scenario, Step, VariableDefinition, DEFAULT_CONFIG,
 };
 use axum::body::{to_bytes, Body};
 use axum::extract::State;
@@ -23,7 +23,7 @@ const MAX_PROXY_BODY_BYTES: usize = 10 * 1024 * 1024;
 
 #[derive(Parser, Debug)]
 #[command(name = "asp", version, about = "Record redacted API flows as reviewable Git patches", long_about = None,
-    after_help = "Privacy defaults: sensitive headers and bodies are never recorded unless policy allows them.\nExit codes: 0 success, 1 runtime/network failure, 2 invalid input or privacy refusal.")]
+    after_help = "Privacy defaults: sensitive headers and query values are denied; bodies require explicit policy.\nExit codes: 0 success, 1 runtime/network failure, 2 invalid input or privacy refusal.")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -75,7 +75,7 @@ struct RecordArgs {
     /// Replace existing output files
     #[arg(long)]
     force: bool,
-    /// Stop automatically after this many completed exchanges (useful in CI)
+    /// Accept at most this many successful exchanges; concurrent excess receives 429
     #[arg(long)]
     max_exchanges: Option<usize>,
     /// Emit a machine-readable completion result
@@ -113,15 +113,60 @@ impl std::fmt::Display for AppError {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let json_requested = std::env::args_os().any(|arg| arg == "--json");
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            if matches!(
+                error.kind(),
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+            ) {
+                print!("{error}");
+                return ExitCode::SUCCESS;
+            }
+            if json_requested {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": false,
+                        "error": error.to_string(),
+                        "kind": "input"
+                    })
+                );
+            } else {
+                let _ = error.print();
+            }
+            return ExitCode::from(2);
+        }
+    };
+    let json_requested = cli.json_requested();
     match run(cli).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("asp: {error}");
-            ExitCode::from(match error {
-                AppError::Input(_) => 2,
-                AppError::Runtime(_) => 1,
-            })
+            let (kind, code) = match &error {
+                AppError::Input(_) => ("input", 2),
+                AppError::Runtime(_) => ("runtime", 1),
+            };
+            if json_requested {
+                println!(
+                    "{}",
+                    serde_json::json!({"ok": false, "error": error.to_string(), "kind": kind})
+                );
+            } else {
+                eprintln!("asp: {error}");
+            }
+            ExitCode::from(code)
+        }
+    }
+}
+
+impl Cli {
+    fn json_requested(&self) -> bool {
+        match &self.command {
+            Command::Init(args) => args.json,
+            Command::Check(args) => args.json,
+            Command::Record(args) => args.json,
+            Command::Replay(args) => args.json,
         }
     }
 }
@@ -144,10 +189,7 @@ fn init(args: InitArgs) -> Result<()> {
     }
     atomic_write(&args.config, DEFAULT_CONFIG.as_bytes())?;
     if args.json {
-        println!(
-            "{}",
-            serde_json::json!({"ok":true,"config":args.config}).to_string()
-        );
+        println!("{}", serde_json::json!({"ok":true,"config":args.config}));
     } else {
         println!(
             "Created {}. Review body allowlists and redactions before recording.",
@@ -211,6 +253,7 @@ struct ProxyState {
     book: Arc<Mutex<CaptureBook>>,
     next_number: Arc<AtomicUsize>,
     completed: Arc<AtomicUsize>,
+    admitted: Arc<AtomicUsize>,
     max_exchanges: Option<usize>,
     stop: Arc<Notify>,
 }
@@ -228,6 +271,7 @@ async fn record(args: RecordArgs) -> std::result::Result<(), AppError> {
         )));
     }
     let config = Config::load(&args.config).map_err(AppError::Input)?;
+    let configured_secrets = config.configured_secrets().map_err(AppError::Input)?;
     let (yaml_path, markdown_path) = output_paths(&args.output);
     if !args.force {
         for path in [&yaml_path, &markdown_path] {
@@ -249,11 +293,12 @@ async fn record(args: RecordArgs) -> std::result::Result<(), AppError> {
             .map_err(|e| AppError::Runtime(e.into()))?,
         book: Arc::new(Mutex::new(CaptureBook {
             steps: vec![],
-            variable_values: HashMap::new(),
+            variable_values: configured_secrets,
             variables: vec![],
         })),
         next_number: Arc::new(AtomicUsize::new(1)),
         completed: Arc::new(AtomicUsize::new(0)),
+        admitted: Arc::new(AtomicUsize::new(0)),
         max_exchanges: args.max_exchanges,
         stop: stop.clone(),
     };
@@ -282,6 +327,18 @@ async fn record(args: RecordArgs) -> std::result::Result<(), AppError> {
 
     let mut book = state.book.lock().await;
     book.steps.sort_by_key(|step| step.number);
+    let number_map: HashMap<_, _> = book
+        .steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| (step.number, index + 1))
+        .collect();
+    for step in &mut book.steps {
+        step.number = number_map[&step.number];
+    }
+    for variable in &mut book.variables {
+        variable.from_step = number_map[&variable.from_step];
+    }
     book.variables
         .sort_by(|a, b| a.from_step.cmp(&b.from_step).then(a.name.cmp(&b.name)));
     let scenario = Scenario {
@@ -312,13 +369,68 @@ async fn record(args: RecordArgs) -> std::result::Result<(), AppError> {
 }
 
 async fn proxy(State(state): State<ProxyState>, request: Request<Body>) -> Response<Body> {
+    let Some(mut permit) = CapturePermit::try_acquire(&state) else {
+        return Response::builder()
+            .status(429)
+            .header("content-type", "application/json")
+            .header("retry-after", "1")
+            .body(Body::from(
+                serde_json::json!({
+                    "error": "capture limit reached",
+                    "hint": "start a new recording for additional exchanges"
+                })
+                .to_string(),
+            ))
+            .expect("static response is valid");
+    };
     match forward_and_capture(state, request).await {
-        Ok(response) => response,
+        Ok(response) => {
+            permit.commit();
+            response
+        }
         Err(error) => {
             eprintln!("asp: upstream request failed: {error:#}");
             Response::builder().status(502).header("content-type", "application/json")
                 .body(Body::from(serde_json::json!({"error":"upstream request failed","hint":"check the upstream URL and network"}).to_string()))
                 .expect("static response is valid")
+        }
+    }
+}
+
+struct CapturePermit {
+    admitted: Arc<AtomicUsize>,
+    reserved: bool,
+    committed: bool,
+}
+
+impl CapturePermit {
+    fn try_acquire(state: &ProxyState) -> Option<Self> {
+        let reserved = if let Some(max) = state.max_exchanges {
+            state
+                .admitted
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                    (current < max).then_some(current + 1)
+                })
+                .is_ok()
+        } else {
+            false
+        };
+        (state.max_exchanges.is_none() || reserved).then(|| Self {
+            admitted: state.admitted.clone(),
+            reserved,
+            committed: false,
+        })
+    }
+
+    fn commit(&mut self) {
+        self.committed = true;
+    }
+}
+
+impl Drop for CapturePermit {
+    fn drop(&mut self) {
+        if self.reserved && !self.committed {
+            self.admitted.fetch_sub(1, Ordering::SeqCst);
         }
     }
 }
@@ -349,7 +461,11 @@ async fn forward_and_capture(state: ProxyState, request: Request<Body>) -> Resul
     let path = parts.uri.path().to_string();
     let mut book = state.book.lock().await;
     let prior_variables = book.variable_values.clone();
-    let request_path = substitute_text(path_and_query, &prior_variables);
+    let request_path = sanitize_path_and_query(
+        path_and_query,
+        &state.config.capture.query_parameters,
+        &prior_variables,
+    );
     let request_body = parse_capture(
         &request_bytes,
         path_allowed(&path, &state.config.capture.request_body_paths),
