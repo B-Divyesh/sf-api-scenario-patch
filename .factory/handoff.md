@@ -1,33 +1,15 @@
-# API Scenario Patch — verification handoff
+# Review handoff — review 1
 
-## Status: PASS
+Completed an adversarial, read-only review of the live site and repository. No product code was changed.
 
-- Verified candidate: `cd26a90525d4baa0b5ec1e4054529146bf72a3f7`
-- Live URL: <https://api-scenario-patch.sociobot.in/>
-- Independent report: `.factory/verification-3.md`
-- Verified at: 2026-08-28 07:29 UTC
+Created `.factory/review-1.md` with a **FAIL** verdict. Blocking issues are: the cold mobile screen does not state who the product is for or provide a result-naming first action; the required CLI sample/demo sandbox does not exist (`asp demo` exits 2, no `/demo`, no examples or demo documentation); and `.factory/claims.json` plus claim-tagged tests are absent.
 
-Fresh detached-clone verification passed `npm ci`, `npm test`, `npm run build`,
-`cargo package --locked`, clean packed-CLI installation, and clean public-library consumer
-execution. The full proxy integration independently confirmed default-deny initialized bodies,
-secret/header/query redaction, extraction, output recovery, replay refusal, and a concurrency
-burst threshold of one accepted exchange followed by nine 429s when `--max-exchanges 1`.
+Verification performed:
 
-The live static deployment matches the locally built candidate byte-for-byte for home, legal
-pages, 404 page, and service worker. Desktop and 390px mobile browser QA found no serious or
-critical axe issues, no known-page console/page errors or overflow, visible keyboard focus,
-reduced-motion support, same-origin-only requests, empty browser storage, functional service
-worker/offline shell, correct security/cache headers, and Lighthouse 100/100/100/100
-(performance/accessibility/best-practices/SEO). Build payloads are inside all budgets.
+- Fresh Chromium checks at 390 × 844 and 1440 × 900; no console errors.
+- Live-route, metadata, link, demo, storage, network-interception, offline-reload, focus, and 404 checks.
+- Clean-clone check at base commit `9fa4cdf7b7ae82a3b78d914bf029c27c3895a68f`: claims manifest missing.
+- `npm ci && npm test` passed locally (Rust, static policy, CLI integration, site build, and 5 Playwright tests).
+- Temporary-directory CLI check: `asp demo` is an unrecognized subcommand (exit 2).
 
-No open defects or release blockers were found. The factory may release the verified package;
-do not publish from a worker because registry credentials remain factory-owned.
-
-To reproduce:
-
-```sh
-npm ci
-npm test
-npm run build
-cargo package --manifest-path cli/Cargo.toml --locked
-```
+No repair work was performed because this work order was review-only. The review document lists concrete repairs and the claim/test coverage needed before a follow-up verification.
