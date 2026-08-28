@@ -26,4 +26,8 @@ tests. Playwright recorded `{"status":"passed","failedTests":[]}`.
 
 ## Known gaps
 
-No blocking product gaps are known. Deployment is factory-owned; this repository contains the static `dist/site` artifact and Azure Static Web Apps configuration, but no deployment credential or deploy command.
+No blocking product gaps are known. The repair was pushed to `main` at
+`762eb76af02670f3d260eb27407dc4a807162274`. Deployment is factory-owned; the repository
+contains the static `dist/site` artifact and Azure Static Web Apps configuration, but no
+deployment credential or deploy command. At handoff, the prior live deployment still
+returned 404 for `/demo/`, so the factory rollout has not yet reached the public URL.
