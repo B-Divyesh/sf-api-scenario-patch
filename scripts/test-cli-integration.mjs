@@ -65,7 +65,7 @@ enabled = false
 allowed_hosts = []
 `);
 
-const child = spawn('cli/target/debug/asp', [
+const child = spawn('target/debug/asp', [
   'record', '--config', configPath, '--output', outputPath, '--max-exchanges', '2', '--json'
 ], { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
 let stderr = '';
@@ -108,7 +108,7 @@ for (const secret of ['client-secret', '4111111111111111', 'server-secret', 'ord
 assert.match(yaml, /\$\{REDACTED_CARD\}/);
 assert.match(yaml, /\/v1\/orders\/\$\{order_id\}/);
 assert.match(markdown, /Reviewer note: Review the order handoff/);
-const replayRefusal = spawnSync('cli/target/debug/asp', [
+const replayRefusal = spawnSync('target/debug/asp', [
   'replay', `${outputPath}.yml`, '--config', configPath
 ], { cwd: process.cwd(), encoding: 'utf8' });
 assert.equal(replayRefusal.status, 2);

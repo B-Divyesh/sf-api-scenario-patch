@@ -56,6 +56,8 @@ This produced a 23.7 KiB compressed crate package locally.
 - `npm audit`: 0 known vulnerabilities.
 - `npm run build`: passes; optimized site and Rust release binary produced.
 - `cargo package --manifest-path cli/Cargo.toml --allow-dirty --no-verify`: passes.
+- The documented Git install shape was verified from the committed repository with
+  `cargo install --git file:///work/repo api-scenario-patch --locked`.
 - Lighthouse 13 mobile against the local site:
   - Performance: **97**
   - Accessibility: **100**
