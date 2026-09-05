@@ -53,8 +53,24 @@ addEventListener('online', updateConnection);
 addEventListener('offline', updateConnection);
 updateConnection();
 
+const restoreFocusSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const focusableElements = () => Array.from(document.querySelectorAll<HTMLElement>(restoreFocusSelector));
+const rememberFocusedElement = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return;
+  const index = focusableElements().indexOf(target);
+  if (index < 0) return;
+  history.replaceState({ ...(history.state ?? {}), aspFocusIndex: index }, '');
+};
+document.addEventListener('focusin', (event) => rememberFocusedElement(event.target));
+if ('scrollRestoration' in history) history.scrollRestoration = 'auto';
+
 const heading = document.querySelector<HTMLElement>('main h1[tabindex="-1"]');
-if (heading) {
+const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+const restoringHistory = navigation?.type === 'back_forward';
+if (restoringHistory && Number.isInteger(history.state?.aspFocusIndex)) {
+  const target = focusableElements()[history.state.aspFocusIndex] ?? heading;
+  window.setTimeout(() => target?.focus({ preventScroll: true }), 0);
+} else if (heading) {
   window.setTimeout(() => heading.focus(), 0);
   const announcer = document.querySelector<HTMLElement>('.route-announcer');
   if (announcer) announcer.textContent = document.title;

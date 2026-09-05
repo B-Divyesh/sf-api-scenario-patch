@@ -40,6 +40,36 @@ test('390px layout has no horizontal page overflow', async ({ page }) => {
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
+test('390px demo terminal is keyboard reachable, scrollable, and free of serious accessibility issues', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo/?demo=1');
+  const terminal = page.getByLabel('Sample asp demo terminal output');
+  await terminal.focus();
+  await expect(terminal).toBeFocused();
+  const before = await terminal.evaluate((element) => ({ left: element.scrollLeft, width: element.scrollWidth, client: element.clientWidth }));
+  expect(before.width).toBeGreaterThan(before.client);
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => terminal.evaluate((element) => element.scrollLeft)).toBeGreaterThan(before.left);
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+});
+
+test('Back restores the landing scroll position and the link that opened Privacy', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const privacy = page.locator('footer a[href="/privacy/"]');
+  await privacy.scrollIntoViewIfNeeded();
+  const savedPosition = await page.evaluate(() => window.scrollY);
+  expect(savedPosition).toBeGreaterThan(1_000);
+  await privacy.click();
+  await expect(page).toHaveURL(/\/privacy\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(savedPosition - 160);
+  await expect(privacy).toBeFocused();
+});
+
 test('@claim:no-third-party-browser-requests browser demo makes only same-origin requests', async ({ page }) => {
   const foreignRequests: string[] = [];
   page.on('request', (request) => {
@@ -66,16 +96,33 @@ test('@claim:no-account-hosted-workspace site has no account form or hosted work
   await expect(page.getByRole('link', { name: 'Try it with sample data' }).first()).toHaveAttribute('href', '/demo/?demo=1');
 });
 
-test('@claim:offline-reload offline reload works after the first visit', async ({ page, context }) => {
-  await page.goto('/demo/?demo=1');
-  await page.evaluate(async () => navigator.serviceWorker.ready);
-  await page.reload();
-  expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  expect(await page.evaluate(async () => (await caches.keys()).includes('asp-site-v4'))).toBe(true);
-  await context.setOffline(true);
-  await page.goto('/demo/');
-  await expect(page.locator('main')).toBeVisible();
-  await context.setOffline(false);
+test('@claim:site-no-forms-or-analytics static site has no form controls or analytics requests', async ({ page }) => {
+  const requests: { type: string; url: string }[] = [];
+  page.on('request', (request) => requests.push({ type: request.resourceType(), url: request.url() }));
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Try it with sample data' }).first().click();
+  await page.getByRole('button', { name: 'Generate sample scenario patch' }).click();
+  await expect(page.locator('form, input, textarea, select')).toHaveCount(0);
+  expect(requests.filter((request) => ['fetch', 'xhr'].includes(request.type))).toEqual([]);
+  expect(requests.every((request) => new URL(request.url).origin === 'http://127.0.0.1:4173')).toBe(true);
+});
+
+test('@claim:offline-reload offline reload works after the first visit', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto('http://127.0.0.1:4173/demo/?demo=1');
+    await page.evaluate(async () => navigator.serviceWorker.ready);
+    await page.reload();
+    expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    expect(await page.evaluate(async () => (await caches.keys()).includes('asp-site-v5'))).toBe(true);
+    await context.setOffline(true);
+    await page.goto('http://127.0.0.1:4173/demo/');
+    await expect(page.locator('main')).toBeVisible();
+  } finally {
+    await context.setOffline(false);
+    await context.close();
+  }
 });
 
 test('routes have metadata, navigation, and focusable destination headings', async ({ page }) => {
@@ -87,6 +134,8 @@ test('routes have metadata, navigation, and focusable destination headings', asy
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('footer')).toContainText('Built by Param Factory');
     await expect(page.locator('h1')).toBeFocused();
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
   }
 });
 

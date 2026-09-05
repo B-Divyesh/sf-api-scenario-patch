@@ -22,7 +22,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_PROXY_BODY_BYTES: usize = 10 * 1024 * 1024;
 
 #[derive(Parser, Debug)]
-#[command(name = "asp", version, about = "Record redacted API flows as reviewable Git patches", long_about = None,
+#[command(name = "asp", version, about = "Record masked API flows as reviewable Git patches", long_about = None,
     after_help = "Privacy defaults: sensitive headers and query values are denied; bodies require explicit policy.\nExit codes: 0 success, 1 runtime/network failure, 2 invalid input or privacy refusal.")]
 struct Cli {
     #[command(subcommand)]
@@ -403,6 +403,7 @@ async fn record(args: RecordArgs) -> std::result::Result<(), AppError> {
     let state = ProxyState {
         config: Arc::new(config.clone()),
         client: reqwest::Client::builder()
+            .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| AppError::Runtime(e.into()))?,
@@ -736,6 +737,7 @@ async fn replay(args: ReplayArgs) -> std::result::Result<(), AppError> {
         )));
     }
     let client = reqwest::Client::builder()
+        .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| AppError::Runtime(e.into()))?;

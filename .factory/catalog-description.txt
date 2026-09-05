@@ -1,1 +1,1 @@
-Record API flows as redacted Markdown and YAML patches for Git review.
+Record API flows as masked Markdown and YAML patches for Git review.

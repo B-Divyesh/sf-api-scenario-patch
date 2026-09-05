@@ -1,4 +1,4 @@
-const CACHE = 'asp-site-v4';
+const CACHE = 'asp-site-v5';
 const SHELL = ['/', '/demo/', '/404.html', '/privacy/', '/terms/', '/paper-cut-api-flow.webp', '/api-scenario-patch-og.webp', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

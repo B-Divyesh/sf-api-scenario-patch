@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const id = process.argv[2];
 if (!id) throw new Error('Usage: npm run test:claim -- <claim id>');
-const browserClaims = new Set(['no-third-party-browser-requests', 'demo-isolated-storage', 'no-account-hosted-workspace', 'offline-reload']);
+const browserClaims = new Set(['no-third-party-browser-requests', 'demo-isolated-storage', 'no-account-hosted-workspace', 'site-no-forms-or-analytics', 'offline-reload']);
 const command = browserClaims.has(id) ? 'npx' : 'node';
 const args = browserClaims.has(id)
   ? ['playwright', 'test', '--grep', `@claim:${id}`]
