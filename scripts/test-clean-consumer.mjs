@@ -18,7 +18,9 @@ if (workingChanges.length > 0) {
 execFileSync('git', ['config', 'user.email', 'consumer-test@example.invalid'], { cwd: source });
 execFileSync('git', ['config', 'user.name', 'Clean consumer test'], { cwd: source });
 execFileSync('git', ['add', '--all'], { cwd: source });
-execFileSync('git', ['commit', '--quiet', '-m', 'consumer fixture'], { cwd: source });
+if (execFileSync('git', ['status', '--porcelain'], { cwd: source, encoding: 'utf8' }).trim()) {
+  execFileSync('git', ['commit', '--quiet', '-m', 'consumer fixture'], { cwd: source });
+}
 
 execFileSync('cargo', [
   'install', '--git', `file://${source}`, '--locked', '--root', installRoot, '--force', 'api-scenario-patch',
